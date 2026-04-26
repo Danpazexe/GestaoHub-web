@@ -1,0 +1,82 @@
+const icons = {
+  dashboard: (
+    <>
+      <path d="M5 19V9" />
+      <path d="M12 19V5" />
+      <path d="M19 19v-7" />
+      <path d="M3 19h18" />
+    </>
+  ),
+  overview: (
+    <path d="M4 11 12 4l8 7v9H4zM9 20v-6h6v6" />
+  ),
+  users: (
+    <>
+      <path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+      <path d="M15.5 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+      <path d="M4.5 19a4.5 4.5 0 0 1 9 0" />
+      <path d="M13 19a3.5 3.5 0 0 1 7 0" />
+    </>
+  ),
+  events: (
+    <>
+      <path d="M7 4v4M17 4v4M5 8h14M6 6h12a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1Z" />
+      <path d="m9 13 2 2 4-4" />
+    </>
+  ),
+  conferencia: (
+    <>
+      <path d="M5 7h14v10H5z" />
+      <path d="M9 11h6M9 15h4" />
+      <path d="M7 4h10" />
+    </>
+  ),
+  recebimento: (
+    <>
+      <path d="M12 3v10" />
+      <path d="m8 9 4 4 4-4" />
+      <path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
+    </>
+  ),
+  tratativas: (
+    <>
+      <path d="M8 7h8" />
+      <path d="M8 12h8" />
+      <path d="M8 17h5" />
+      <path d="M6 4h12a2 2 0 0 1 2 2v12l-4 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+    </>
+  ),
+  avarias: (
+    <>
+      <path d="M12 4 4 8l8 4 8-4-8-4Z" />
+      <path d="M4 12l8 4 8-4" />
+      <path d="M4 16l8 4 8-4" />
+    </>
+  ),
+  validade: (
+    <>
+      <path d="M8 4v6" />
+      <path d="M16 4v6" />
+      <path d="M6 10h12" />
+      <path d="M7 20h10a2 2 0 0 0 2-2V8H5v10a2 2 0 0 0 2 2Z" />
+      <path d="M10 14h4" />
+    </>
+  ),
+};
+
+export const AppIcon = ({ name, size = 18, className = '' }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {icons[name] || icons.overview}
+  </svg>
+);

@@ -73,6 +73,7 @@ export const DashboardView = ({
     ];
 
     (validade || []).forEach((row) => {
+      if (row.status === 'resolved' || row.status === 'treated') return;
       const days = Number(row.diasrestantes);
       if (days <= 7) buckets[0].value += 1;
       else if (days <= 15) buckets[1].value += 1;

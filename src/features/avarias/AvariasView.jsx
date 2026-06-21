@@ -32,7 +32,7 @@ export const AvariasView = ({ avarias, onRefresh }) => {
       return true;
     }),
     {
-      searchKeys: ['descricao', 'codprod', 'damage_type'],
+      searchKeys: ['descricao', 'codprod', 'damage_type', 'supplier'],
       pageSize: 20,
     },
   );
@@ -167,6 +167,7 @@ export const AvariasView = ({ avarias, onRefresh }) => {
           }}
           columns={[
             { key: 'batch_id', label: 'Lote' },
+            { key: 'supplier', label: 'Fornecedor', render: (row) => row.supplier || '-' },
             {
               key: 'user_name',
               label: 'Operador',

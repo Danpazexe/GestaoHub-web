@@ -16,7 +16,7 @@ export const OverviewView = ({
   const quickCards = [
     {
       label: 'Produtos ≤ 7 dias',
-      value: (validade || []).filter((item) => Number(item.diasrestantes) <= 7).length,
+      value: (validade || []).filter((item) => item.status !== 'resolved' && item.status !== 'treated' && Number(item.diasrestantes) <= 7).length,
       accent: 'linear-gradient(135deg, #bf3b2f 0%, #e2806f 100%)',
       note: 'Urgência crítica do módulo de validade.',
       target: 'validade',

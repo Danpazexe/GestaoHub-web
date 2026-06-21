@@ -2,6 +2,22 @@ import { useCallback, useEffect, useState } from 'react';
 import { adminApi } from '../services/adminApi';
 import { isSupabaseReady, supabase } from '../lib/supabase';
 
+// Traduz erros crus do supabase-js em mensagens acionáveis.
+// O modo de falha mais comum hoje é o backend inacessível (URL/projeto inexistente),
+// que o supabase-js lança como "Failed to fetch" — pouco diagnosticável para o usuário.
+const describeAuthError = (error) => {
+  const raw = String(error?.message || '');
+  const isNetwork =
+    error?.name === 'TypeError' ||
+    /failed to fetch|fetch failed|network|resolve host|ENOTFOUND|ECONNREFUSED|NXDOMAIN/i.test(raw);
+
+  if (isNetwork) {
+    return 'Não foi possível conectar ao backend. Verifique VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env, e confirme que o projeto Supabase existe e está ativo.';
+  }
+
+  return raw || 'Falha ao validar sessão admin.';
+};
+
 export const useAdminSession = () => {
   const [state, setState] = useState({
     loading: true,
@@ -65,7 +81,7 @@ export const useAdminSession = () => {
         user: null,
         profile: null,
         admin: null,
-        error: error?.message || 'Falha ao validar sessão admin.',
+        error: describeAuthError(error),
       });
     }
   }, []);

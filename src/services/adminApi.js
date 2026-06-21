@@ -23,6 +23,23 @@ const readMany = async (table, options = {}) => {
   return data || [];
 };
 
+// Resolve o nome do ator dos eventos pelo profiles (caso actor_name tenha vindo nulo do app).
+const attachActor = async (rows) => {
+  const ids = [...new Set((rows || []).map((row) => row.user_id).filter(Boolean))];
+  if (!ids.length) return rows || [];
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('user_id, name, email')
+    .in('user_id', ids);
+
+  const byId = new Map((profiles || []).map((profile) => [profile.user_id, profile]));
+  return (rows || []).map((row) => {
+    const profile = byId.get(row.user_id);
+    return { ...row, actor_name: row.actor_name || profile?.name || profile?.email || null };
+  });
+};
+
 const toBonusQueueItem = (item = {}, index = 0) => {
   const packagingOptions = Array.isArray(item.packagingOptions) ? item.packagingOptions : [];
   const firstPackaging = packagingOptions[0] || null;
@@ -768,12 +785,13 @@ export const adminApi = {
   },
 
   async getEvents() {
-    return readMany('operational_events', {
-      columns: 'id, module, event_type, entity_type, entity_id, actor_name, order_ref, batch_ref, created_at, payload',
+    const rows = await readMany('operational_events', {
+      columns: 'id, module, event_type, entity_type, entity_id, actor_name, order_ref, batch_ref, created_at, payload, user_id',
       orderBy: 'created_at',
       ascending: false,
       limit: 60,
     });
+    return attachActor(rows);
   },
 
   async updateTratativa(id, patch) {
@@ -814,6 +832,7 @@ export const adminApi = {
       .update({
         status: payload.item_status || 'resolved',
         resolution_type: payload.resolution_type,
+        resolution_note: payload.observacao || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -844,6 +863,7 @@ export const adminApi = {
       .update({
         treatment_type: payload.treatment_type,
         treatment_date: new Date().toISOString(),
+        treatment_note: payload.observacao || null,
         status: payload.status || 'treated',
       })
       .eq('id', id)
@@ -861,7 +881,9 @@ export const adminApi = {
     const { data, error } = await supabase
       .from('validade_products')
       .update({
-        status: 'resolvida',
+        // Enum canônico do domínio: active | treated | resolved
+        // (antes gravava 'resolvida', que divergia do schema e do dashboard).
+        status: 'resolved',
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
@@ -905,17 +927,18 @@ export const adminApi = {
   },
 
   async forceSignOut(userId) {
-    const { error } = await supabase
-      .from('user_presence')
-      .update({
-        status: 'signed_out',
-        signed_out_at: new Date().toISOString(),
-      })
-      .eq('user_id', userId);
+    // RPC SECURITY DEFINER: a RLS owner-only bloqueia o admin de atualizar a
+    // presença de outro usuário; a função valida is_admin_user() e retorna
+    // quantas sessões foram encerradas (para a UI distinguir "sem sessão ativa").
+    const { data, error } = await supabase.rpc('admin_force_sign_out', {
+      target_user_id: userId,
+    });
 
     if (error) {
       throw new Error('Falha ao forçar o logout do usuário.');
     }
+
+    return data || 0;
   },
 
   async getUserEvents(userId, limit = 20) {
@@ -930,6 +953,6 @@ export const adminApi = {
       throw new Error('Falha ao carregar o histórico do usuário.');
     }
 
-    return data || [];
+    return attachActor(data || []);
   },
 };

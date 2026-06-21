@@ -39,9 +39,13 @@ export const UsersView = ({ activeUsers, onRefresh }) => {
 
     const loadingId = toast.loading('Forçando logout...');
     try {
-      await adminApi.forceSignOut(row.user_id);
+      const affected = await adminApi.forceSignOut(row.user_id);
       await onRefresh?.();
-      toast.success('Logout forçado com sucesso.');
+      if (affected > 0) {
+        toast.success('Logout forçado com sucesso.');
+      } else {
+        toast.error('Nenhuma sessão ativa encontrada para este usuário.');
+      }
     } catch (error) {
       toast.error(error?.message || 'Falha ao forçar o logout.');
     } finally {

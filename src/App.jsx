@@ -16,7 +16,10 @@ import { AvariasView } from './features/avarias/AvariasView';
 import { ValidadeView } from './features/validade/ValidadeView';
 import { EventsView } from './features/events/EventsView';
 
-const REFRESH_INTERVAL_MS = 45000;
+// Plano FREE do Supabase: o painel recarrega ~12 chamadas por ciclo, então
+// espaçamos para 3 min (antes 45s) para economizar requisições. O botão
+// "Atualizar" continua disponível para refresh sob demanda.
+const REFRESH_INTERVAL_MS = 180000;
 
 const initialDataState = {
   loading: true,

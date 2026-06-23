@@ -43,14 +43,16 @@ export const DataTable = ({
     return nextRows;
   }, [rows, columns, searchable, search, sortable, sortState]);
 
+  const pageCount = pageSize ? Math.max(1, Math.ceil(processedRows.length / pageSize)) : 1;
+  // Clampa a página exibida: se um filtro externo encolher a lista, a página
+  // atual pode passar do total -> usamos safePage no slice E na UI.
+  const safePage = Math.min(Math.max(1, page), pageCount);
+
   const pagedRows = useMemo(() => {
     if (!pageSize) return processedRows;
-    const safePage = Math.min(Math.max(1, page), Math.max(1, Math.ceil(processedRows.length / pageSize)));
     const startIndex = (safePage - 1) * pageSize;
     return processedRows.slice(startIndex, startIndex + pageSize);
-  }, [processedRows, page, pageSize]);
-
-  const pageCount = pageSize ? Math.max(1, Math.ceil(processedRows.length / pageSize)) : 1;
+  }, [processedRows, safePage, pageSize]);
 
   const toggleSort = (key) => {
     if (!sortable) return;
@@ -119,11 +121,11 @@ export const DataTable = ({
 
       {pageSize && pageCount > 1 ? (
         <div className="table-pagination">
-          <button type="button" className="ghost-button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1}>
+          <button type="button" className="ghost-button" onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage <= 1}>
             Anterior
           </button>
-          <span>Página {page} de {pageCount}</span>
-          <button type="button" className="ghost-button" onClick={() => setPage((current) => Math.min(pageCount, current + 1))} disabled={page >= pageCount}>
+          <span>Página {safePage} de {pageCount}</span>
+          <button type="button" className="ghost-button" onClick={() => setPage(Math.min(pageCount, safePage + 1))} disabled={safePage >= pageCount}>
             Próxima
           </button>
         </div>

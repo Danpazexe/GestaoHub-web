@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAdminSession } from './hooks/useAdminSession';
@@ -8,15 +8,17 @@ import { AdminShell } from './components/AdminShell';
 import { adminApi } from './services/adminApi';
 import { formatDateTime } from './lib/format';
 import { parseNfeXml } from './lib/nfeXml';
-import { DashboardView } from './features/dashboard/DashboardView';
-import { OverviewView } from './features/overview/OverviewView';
-import { UsersView } from './features/users/UsersView';
-import { TratativasView } from './features/tratativas/TratativasView';
-import { RecebimentoView } from './features/recebimento/RecebimentoView';
-import { ConferenciaView } from './features/conferencia/ConferenciaView';
-import { AvariasView } from './features/avarias/AvariasView';
-import { ValidadeView } from './features/validade/ValidadeView';
-import { EventsView } from './features/events/EventsView';
+// Views carregadas sob demanda (code splitting) — cada módulo vira um chunk próprio,
+// reduzindo o bundle inicial (charts/recharts só carregam ao abrir o dashboard).
+const DashboardView = lazy(() => import('./features/dashboard/DashboardView').then((m) => ({ default: m.DashboardView })));
+const OverviewView = lazy(() => import('./features/overview/OverviewView').then((m) => ({ default: m.OverviewView })));
+const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
+const TratativasView = lazy(() => import('./features/tratativas/TratativasView').then((m) => ({ default: m.TratativasView })));
+const RecebimentoView = lazy(() => import('./features/recebimento/RecebimentoView').then((m) => ({ default: m.RecebimentoView })));
+const ConferenciaView = lazy(() => import('./features/conferencia/ConferenciaView').then((m) => ({ default: m.ConferenciaView })));
+const AvariasView = lazy(() => import('./features/avarias/AvariasView').then((m) => ({ default: m.AvariasView })));
+const ValidadeView = lazy(() => import('./features/validade/ValidadeView').then((m) => ({ default: m.ValidadeView })));
+const EventsView = lazy(() => import('./features/events/EventsView').then((m) => ({ default: m.EventsView })));
 
 // Plano FREE do Supabase: o painel recarrega ~12 chamadas por ciclo, então
 // espaçamos para 3 min (antes 45s) para economizar requisições. O botão
@@ -484,7 +486,9 @@ function App() {
       >
         {dataState.error ? <div className="feedback error">{dataState.error}</div> : null}
         {dataState.loading ? <div className="inline-loading">Atualizando dados...</div> : null}
-        {viewMap[selectedView] || viewMap.dashboard}
+        <Suspense fallback={<div className="inline-loading">Carregando módulo...</div>}>
+          {viewMap[selectedView] || viewMap.dashboard}
+        </Suspense>
       </AdminShell>
     </>
   );

@@ -2,11 +2,75 @@ import { useMemo, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
+import { Drawer } from '../../components/Drawer';
 import { useConfirm } from '../../hooks/useConfirm';
 import { adminApi } from '../../services/adminApi';
 import { toast } from '../../lib/toast';
 import { exportCsv } from '../../lib/csv';
 import { formatDateTime } from '../../lib/format';
+
+const toNumber = (value) => {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+// Lê o snapshot de conferência (esperado x conferido por item) gravado pelo app
+// ao finalizar e deriva a porcentagem de conferência + divergências.
+const computeConference = (row) => {
+  const items = Array.isArray(row?.conference_result) ? row.conference_result : [];
+  if (!items.length) {
+    return {
+      hasData: false,
+      percent: null,
+      expected: toNumber(row?.total_quantity),
+      conferred: toNumber(row?.checked_quantity),
+      divergences: toNumber(row?.divergence_count),
+      items: [],
+    };
+  }
+
+  const expected = items.reduce((sum, item) => sum + toNumber(item.expectedQty), 0);
+  // Completude = quanto do esperado foi conferido (excesso não passa de 100%).
+  const conferredCapped = items.reduce(
+    (sum, item) => sum + Math.min(toNumber(item.checkedQty), toNumber(item.expectedQty)),
+    0,
+  );
+  const conferred = items.reduce((sum, item) => sum + toNumber(item.checkedQty), 0);
+  const divergences = items.filter((item) => toNumber(item.diff) !== 0).length;
+  const percent = expected > 0 ? Math.round((conferredCapped / expected) * 100) : 100;
+
+  return { hasData: true, percent, expected, conferred, divergences, items };
+};
+
+const percentTone = (percent) => {
+  if (percent === null) return 'neutral';
+  if (percent >= 100) return 'ok';
+  if (percent >= 70) return 'warn';
+  return 'danger';
+};
+
+// Progresso ao vivo de um bônus em aberto (quanto do esperado já foi conferido).
+const openProgressPercent = (row) => {
+  const total = toNumber(row?.total_quantity);
+  const checked = toNumber(row?.checked_quantity);
+  if (total <= 0) return checked > 0 ? 100 : 0;
+  return Math.min(100, Math.round((checked / total) * 100));
+};
+
+const ConferenceProgress = ({ row }) => {
+  if (row.status === 'nao_iniciado' && toNumber(row.checked_quantity) === 0) {
+    return <span className="conf-progress-empty">Aguardando</span>;
+  }
+  const pct = openProgressPercent(row);
+  return (
+    <div className="conf-progress" title={`${toNumber(row.checked_quantity)} de ${toNumber(row.total_quantity)} conferidos`}>
+      <div className="conf-progress-track">
+        <div className={`conf-progress-fill${pct >= 100 ? ' is-ok' : ''}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="conf-progress-label">{pct}%</span>
+    </div>
+  );
+};
 
 const createPackagingDraft = () => ({
   id: crypto.randomUUID(),
@@ -41,8 +105,10 @@ const sanitizeQty = (value) => {
 
 export const ConferenciaView = ({
   conferenciaBonusQueue,
+  conferenciaSaidaBonusQueue,
   conferenciaSaidas,
   onCreateManualBonus,
+  onCreateManualSaidaBonus,
   assignableUsers,
   onRefresh,
 }) => {
@@ -61,6 +127,18 @@ export const ConferenciaView = ({
     success: '',
   });
   const [assignmentMap, setAssignmentMap] = useState({});
+  const [detailRow, setDetailRow] = useState(null);
+
+  // Montador de bônus de SAÍDA (pedido + itens) — fila separada da de entrada.
+  const [saidaBuilderCollapsed, setSaidaBuilderCollapsed] = useState(false);
+  const [saidaHeader, setSaidaHeader] = useState({ order_code: '', customer_name: '', route_code: '' });
+  const [saidaItems, setSaidaItems] = useState([createItemDraft()]);
+  const [saidaState, setSaidaState] = useState({ loading: false, error: '', success: '' });
+
+  const detail = useMemo(
+    () => (detailRow ? { row: detailRow, ...computeConference(detailRow) } : null),
+    [detailRow],
+  );
 
   const usersOptions = useMemo(
     () => (assignableUsers || []).map((user) => ({
@@ -82,6 +160,24 @@ export const ConferenciaView = ({
     () => (conferenciaBonusQueue || []).filter((row) => row.status === 'finalizada'),
     [conferenciaBonusQueue],
   );
+
+  const openSaidaQueue = useMemo(
+    () => (conferenciaSaidaBonusQueue || []).filter(
+      (row) => row.status === 'nao_iniciado' || row.status === 'em_conferencia',
+    ),
+    [conferenciaSaidaBonusQueue],
+  );
+  const finishedSaidaQueue = useMemo(
+    () => (conferenciaSaidaBonusQueue || []).filter((row) => row.status === 'finalizada'),
+    [conferenciaSaidaBonusQueue],
+  );
+
+  const updateSaidaHeader = (key, value) => setSaidaHeader((current) => ({ ...current, [key]: value }));
+  const updateSaidaItem = (itemId, key, value) => setSaidaItems((current) => current.map((item) => (
+    item.id === itemId ? { ...item, [key]: value } : item
+  )));
+  const addSaidaItem = () => setSaidaItems((current) => [...current, createItemDraft()]);
+  const removeSaidaItem = (itemId) => setSaidaItems((current) => current.length > 1 ? current.filter((item) => item.id !== itemId) : current);
 
   const updateHeader = (key, value) => {
     setManualHeader((current) => ({ ...current, [key]: value }));
@@ -314,6 +410,152 @@ export const ConferenciaView = ({
     }
   };
 
+  // ── Handlers do bônus de SAÍDA ──
+  const handleCreateManualSaidaBonus = async () => {
+    setSaidaState({ loading: true, error: '', success: '' });
+    try {
+      const orderCode = String(saidaHeader.order_code || '').trim();
+      if (!orderCode) throw new Error('Informe o código do pedido de saída.');
+
+      const payloadItems = saidaItems.map((item, index) => {
+        const baseLabel = String(item.unit || 'UN').trim() || 'UN';
+        const basePackaging = {
+          id: 'base',
+          label: baseLabel,
+          factor: 1,
+          ean: String(item.ean || '').trim(),
+          dun: String(item.dun || '').trim(),
+        };
+        return {
+          line_number: index + 1,
+          code: String(item.code || '').trim() || null,
+          description: String(item.description || '').trim(),
+          expected_qty: sanitizeQty(item.expected_qty),
+          unit: baseLabel,
+          ean: basePackaging.ean || null,
+          dun: basePackaging.dun || null,
+          packaging_options: [basePackaging],
+        };
+      }).filter((item) => item.description);
+
+      if (!payloadItems.length) throw new Error('Adicione pelo menos um produto com descrição.');
+
+      await onCreateManualSaidaBonus(
+        {
+          order_code: orderCode,
+          customer_name: String(saidaHeader.customer_name || '').trim() || null,
+          route_code: String(saidaHeader.route_code || '').trim() || null,
+        },
+        payloadItems,
+      );
+
+      setSaidaHeader({ order_code: '', customer_name: '', route_code: '' });
+      setSaidaItems([createItemDraft()]);
+      setSaidaState({ loading: false, error: '', success: `Bônus de saída do pedido ${orderCode} enviado para o celular.` });
+      await onRefresh?.();
+    } catch (error) {
+      setSaidaState({ loading: false, error: error?.message || 'Falha ao criar bônus de saída.', success: '' });
+    }
+  };
+
+  const assignSaidaResponsible = async (row) => {
+    const userId = assignmentMap[row.id];
+    if (!userId) {
+      toast.error('Selecione um responsável antes de atribuir.');
+      return;
+    }
+    const selectedUser = (assignableUsers || []).find((user) => user.user_id === userId);
+    const assignedUserName = selectedUser?.name || selectedUser?.email || null;
+    const loadingId = toast.loading('Atribuindo responsável...');
+    try {
+      await adminApi.assignConferenciaSaidaBonus(row.id, userId, assignedUserName);
+      await onRefresh?.();
+      toast.success('Responsável atribuído.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao atribuir responsável.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
+  const removeSaidaQueue = async (row) => {
+    const approved = await confirm({
+      title: 'Remover bônus de saída?',
+      description: `O pedido ${row.order_code || '-'} será removido da fila de saída.`,
+      confirmLabel: 'Remover',
+      danger: true,
+    });
+    if (!approved) return;
+    const loadingId = toast.loading('Removendo bônus...');
+    try {
+      await adminApi.removeConferenciaSaidaBonus(row.id);
+      await onRefresh?.();
+      toast.success('Bônus de saída removido da fila.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao remover o bônus.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
+  const reopenSaidaBonus = async (row) => {
+    const approved = await confirm({
+      title: 'Reabrir bônus de saída?',
+      description: `O pedido ${row.order_code || '-'} voltará para a fila e reaparecerá para o conferente.`,
+      confirmLabel: 'Reabrir',
+    });
+    if (!approved) return;
+    const loadingId = toast.loading('Reabrindo bônus...');
+    try {
+      await adminApi.reopenConferenciaSaidaBonus(row.id);
+      await onRefresh?.();
+      toast.success('Bônus de saída reaberto.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao reabrir o bônus.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
+  const giveSaidaExit = async (row) => {
+    const approved = await confirm({
+      title: 'Dar saída no pedido?',
+      description: `O pedido ${row.order_code || '-'} será encerrado (saída realizada) e sairá da lista de finalizados.`,
+      confirmLabel: 'Dar saída',
+    });
+    if (!approved) return;
+    const loadingId = toast.loading('Dando saída...');
+    try {
+      await adminApi.markConferenciaSaidaBonusExit(row.id);
+      await onRefresh?.();
+      toast.success('Saída registrada. Pedido encerrado.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao dar saída no pedido.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
+  const finishSaidaWithPendency = async (row) => {
+    const approved = await confirm({
+      title: 'Finalizar com pendência?',
+      description: `O pedido ${row.order_code || '-'} será finalizado mesmo sem conferência completa. As divergências ficam registradas.`,
+      confirmLabel: 'Finalizar com pendência',
+      danger: true,
+    });
+    if (!approved) return;
+    const loadingId = toast.loading('Finalizando bônus...');
+    try {
+      await adminApi.finishConferenciaSaidaBonusWithPendency(row.id);
+      await onRefresh?.();
+      toast.success('Bônus de saída finalizado com pendência.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao finalizar o bônus.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
   return (
     <>
       {ConfirmModalNode}
@@ -456,6 +698,92 @@ export const ConferenciaView = ({
           )}
         </PanelSection>
 
+        <PanelSection
+          title="Criar bônus de saída"
+          subtitle="Monte o pedido de saída (código bipavel + produtos) para o conferente bipar e conferir no app"
+          kicker="Saída"
+          actions={(
+            <button
+              className="table-action-button"
+              type="button"
+              onClick={() => setSaidaBuilderCollapsed((current) => !current)}
+              title={saidaBuilderCollapsed ? 'Expandir montador de saída' : 'Recolher montador de saída'}
+            >
+              {saidaBuilderCollapsed ? 'Expandir' : 'Recolher'}
+            </button>
+          )}
+        >
+          {saidaBuilderCollapsed ? (
+            <div className="builder-collapsed-note" role="status">Montador de saída recolhido.</div>
+          ) : (
+            <>
+              <div className="bonus-builder-grid">
+                <label className="builder-field">
+                  <span>Pedido (código bipavel)</span>
+                  <input value={saidaHeader.order_code} onChange={(event) => updateSaidaHeader('order_code', event.target.value)} placeholder="Ex.: PED-123 / QR / código de barras" />
+                </label>
+                <label className="builder-field">
+                  <span>Cliente / destino</span>
+                  <input value={saidaHeader.customer_name} onChange={(event) => updateSaidaHeader('customer_name', event.target.value)} placeholder="Opcional" />
+                </label>
+                <label className="builder-field">
+                  <span>Rota</span>
+                  <input value={saidaHeader.route_code} onChange={(event) => updateSaidaHeader('route_code', event.target.value)} placeholder="Opcional" />
+                </label>
+              </div>
+
+              <div className="builder-toolbar">
+                <strong>Produtos do pedido</strong>
+                <button className="table-action-button" type="button" onClick={addSaidaItem} title="Adicionar produto">Adicionar produto</button>
+              </div>
+
+              <div className="bonus-items-list">
+                {saidaItems.map((item, index) => (
+                  <div className="bonus-item-card" key={item.id}>
+                    <div className="bonus-item-header">
+                      <strong>Produto {index + 1}</strong>
+                      {saidaItems.length > 1 ? (
+                        <button className="table-action-button is-danger" type="button" onClick={() => removeSaidaItem(item.id)} title="Remover produto">Remover</button>
+                      ) : null}
+                    </div>
+                    <div className="bonus-builder-grid">
+                      <label className="builder-field">
+                        <span>Código</span>
+                        <input value={item.code} onChange={(event) => updateSaidaItem(item.id, 'code', event.target.value)} placeholder="Código interno" />
+                      </label>
+                      <label className="builder-field builder-field-wide">
+                        <span>Descrição</span>
+                        <input value={item.description} onChange={(event) => updateSaidaItem(item.id, 'description', event.target.value)} placeholder="Descrição do produto" />
+                      </label>
+                      <label className="builder-field">
+                        <span>Quantidade</span>
+                        <input value={item.expected_qty} onChange={(event) => updateSaidaItem(item.id, 'expected_qty', event.target.value)} placeholder="0" inputMode="decimal" />
+                      </label>
+                      <label className="builder-field">
+                        <span>Unidade</span>
+                        <input value={item.unit} onChange={(event) => updateSaidaItem(item.id, 'unit', event.target.value)} placeholder="UN" />
+                      </label>
+                      <label className="builder-field">
+                        <span>EAN</span>
+                        <input value={item.ean} onChange={(event) => updateSaidaItem(item.id, 'ean', event.target.value)} placeholder="EAN para bipagem" />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {saidaState.error ? <div className="feedback error" role="alert">{saidaState.error}</div> : null}
+              {saidaState.success ? <div className="feedback success" role="status">{saidaState.success}</div> : null}
+
+              <div className="builder-footer">
+                <button className="primary-button builder-submit" type="button" onClick={handleCreateManualSaidaBonus} disabled={saidaState.loading} title="Criar bônus de saída para o celular">
+                  {saidaState.loading ? 'Criando bônus...' : 'Criar bônus de saída'}
+                </button>
+              </div>
+            </>
+          )}
+        </PanelSection>
+
         <div className="content-grid two-columns">
           <PanelSection title={`Bônus em aberto (${openBonusQueue.length})`} subtitle="NFs aguardando conferência no celular" kicker="Recebimento">
             <DataTable
@@ -571,6 +899,22 @@ export const ConferenciaView = ({
               { key: 'invoice_number', label: 'NF' },
               { key: 'supplier_name', label: 'Fornecedor' },
               { key: 'item_count', label: 'Itens' },
+              {
+                key: 'conference',
+                label: 'Conferência',
+                render: (row) => {
+                  const summary = computeConference(row);
+                  if (!summary.hasData) {
+                    return <span className="conference-pill is-neutral" title="Sem detalhamento de conferência (finalizado pelo painel)">sem dados</span>;
+                  }
+                  return (
+                    <span className={`conference-pill is-${percentTone(summary.percent)}`} title={`${summary.conferred} conferidos de ${summary.expected} esperados`}>
+                      {summary.percent}%
+                      {summary.divergences > 0 ? <em> · {summary.divergences} div.</em> : null}
+                    </span>
+                  );
+                },
+              },
               { key: 'assigned_user_name', label: 'Conferente', render: (row) => row.assigned_user_name || '—' },
               { key: 'finished_at', label: 'Finalizado em', render: (row) => formatDateTime(row.finished_at) },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
@@ -579,6 +923,9 @@ export const ConferenciaView = ({
                 label: 'Fila',
                 render: (row) => (
                   <div className="table-actions-row">
+                    <button type="button" className="table-action-button" onClick={() => setDetailRow(row)} title="Ver itens e divergências da conferência">
+                      Detalhes
+                    </button>
                     <button type="button" className="table-action-button" onClick={() => giveEntry(row)} title="Dar entrada e encerrar o bônus">
                       Dar entrada
                     </button>
@@ -595,7 +942,175 @@ export const ConferenciaView = ({
             emptyMessage="Nenhum bônus finalizado."
           />
         </PanelSection>
+
+        <div className="content-grid two-columns">
+          <PanelSection title={`Saída em aberto (${openSaidaQueue.length})`} subtitle="Pedidos aguardando conferência de saída no celular" kicker="Saída">
+            <DataTable
+              rows={openSaidaQueue}
+              searchable
+              sortable
+              pageSize={15}
+              columns={[
+                { key: 'order_code', label: 'Pedido' },
+                { key: 'customer_name', label: 'Cliente', render: (row) => row.customer_name || '—' },
+                { key: 'item_count', label: 'Itens' },
+                { key: 'progress', label: 'Progresso', render: (row) => <ConferenceProgress row={row} /> },
+                { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+                {
+                  key: 'assigned_user_name',
+                  label: 'Responsável',
+                  render: (row) => (
+                    <div className="assignment-cell">
+                      <select
+                        value={assignmentMap[row.id] || row.assigned_user_id || ''}
+                        onChange={(event) => setAssignmentMap((current) => ({ ...current, [row.id]: event.target.value }))}
+                      >
+                        <option value="">Selecionar</option>
+                        {usersOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                      <button type="button" className="table-action-button" onClick={() => assignSaidaResponsible(row)} title="Atribuir responsável">Atribuir</button>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'actions',
+                  label: 'Fila',
+                  render: (row) => (
+                    <div className="table-actions-row">
+                      <button type="button" className="table-action-button" onClick={() => finishSaidaWithPendency(row)} title="Finalizar mesmo com pendência">Finalizar c/ pendência</button>
+                      <button type="button" className="table-action-button is-danger" onClick={() => removeSaidaQueue(row)} title="Remover da fila">Remover</button>
+                    </div>
+                  ),
+                },
+              ]}
+              emptyMessage="Nenhum pedido de saída em aberto."
+            />
+          </PanelSection>
+
+          <PanelSection title={`Saída finalizados (${finishedSaidaQueue.length})`} subtitle="Pedidos já conferidos no celular" kicker="Saída">
+            <DataTable
+              rows={finishedSaidaQueue}
+              searchable
+              sortable
+              pageSize={15}
+              columns={[
+                { key: 'order_code', label: 'Pedido' },
+                { key: 'customer_name', label: 'Cliente', render: (row) => row.customer_name || '—' },
+                {
+                  key: 'conference',
+                  label: 'Conferência',
+                  render: (row) => {
+                    const summary = computeConference(row);
+                    if (!summary.hasData) {
+                      return <span className="conference-pill is-neutral" title="Sem detalhamento (finalizado pelo painel)">sem dados</span>;
+                    }
+                    return (
+                      <span className={`conference-pill is-${percentTone(summary.percent)}`} title={`${summary.conferred} conferidos de ${summary.expected} esperados`}>
+                        {summary.percent}%
+                        {summary.divergences > 0 ? <em> · {summary.divergences} div.</em> : null}
+                      </span>
+                    );
+                  },
+                },
+                { key: 'assigned_user_name', label: 'Conferente', render: (row) => row.assigned_user_name || '—' },
+                { key: 'finished_at', label: 'Finalizado em', render: (row) => formatDateTime(row.finished_at) },
+                {
+                  key: 'actions',
+                  label: 'Fila',
+                  render: (row) => (
+                    <div className="table-actions-row">
+                      <button type="button" className="table-action-button" onClick={() => setDetailRow(row)} title="Ver itens e divergências">Detalhes</button>
+                      <button type="button" className="table-action-button" onClick={() => giveSaidaExit(row)} title="Dar saída e encerrar o pedido">Dar saída</button>
+                      <button type="button" className="table-action-button" onClick={() => reopenSaidaBonus(row)} title="Reabrir e enviar de volta ao conferente">Reabrir</button>
+                      <button type="button" className="table-action-button is-danger" onClick={() => removeSaidaQueue(row)} title="Remover da fila">Remover</button>
+                    </div>
+                  ),
+                },
+              ]}
+              emptyMessage="Nenhum pedido de saída finalizado."
+            />
+          </PanelSection>
+        </div>
       </div>
+
+      <Drawer
+        open={!!detail}
+        onClose={() => setDetailRow(null)}
+        title={detail ? `Conferência · ${detail.row.order_code ? `Pedido ${detail.row.order_code}` : `NF ${detail.row.invoice_number || '-'}`}` : 'Conferência'}
+        width={560}
+      >
+        {detail ? (
+          <div className="conference-detail">
+            <div className="conference-detail-head">
+              <div>
+                <strong>{detail.row.supplier_name || detail.row.customer_name || (detail.row.order_code ? 'Pedido de saída' : 'Fornecedor não informado')}</strong>
+                <span className="conference-detail-sub">
+                  Conferente: {detail.row.assigned_user_name || '—'}
+                  {detail.row.finished_at ? ` · ${formatDateTime(detail.row.finished_at)}` : ''}
+                </span>
+              </div>
+              {detail.hasData ? (
+                <span className={`conference-pill is-${percentTone(detail.percent)} is-lg`}>{detail.percent}%</span>
+              ) : null}
+            </div>
+
+            {detail.row.finalized_with_pendency ? (
+              <div className="feedback error" role="status">Finalizado com pendência pelo painel.</div>
+            ) : null}
+
+            <div className="conference-metrics">
+              <div className="conference-metric">
+                <span className="conference-metric-value">{detail.expected}</span>
+                <span className="conference-metric-label">Esperado</span>
+              </div>
+              <div className="conference-metric">
+                <span className="conference-metric-value">{detail.conferred}</span>
+                <span className="conference-metric-label">Conferido</span>
+              </div>
+              <div className="conference-metric">
+                <span className={`conference-metric-value ${detail.divergences > 0 ? 'is-danger' : ''}`}>{detail.divergences}</span>
+                <span className="conference-metric-label">Divergências</span>
+              </div>
+            </div>
+
+            {detail.hasData ? (
+              <table className="conference-items">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th className="num">Esp.</th>
+                    <th className="num">Conf.</th>
+                    <th className="num">Dif.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.items.map((item, index) => {
+                    const diff = toNumber(item.diff);
+                    const tone = diff === 0 ? 'ok' : diff > 0 ? 'warn' : 'danger';
+                    return (
+                      <tr key={`${item.code || 'item'}-${index}`} className={diff !== 0 ? 'is-divergent' : ''}>
+                        <td>
+                          <div className="conference-item-code">{item.code || '—'}{item.packagingLabel ? ` · ${item.packagingLabel}` : ''}</div>
+                          <div className="conference-item-desc">{item.description || '—'}</div>
+                        </td>
+                        <td className="num">{toNumber(item.expectedQty)}</td>
+                        <td className="num">{toNumber(item.checkedQty)}</td>
+                        <td className={`num conference-diff is-${tone}`}>{diff > 0 ? `+${diff}` : diff}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div className="empty-state compact-empty">
+                Este bônus não tem detalhamento item a item (finalizado pelo painel ou conferido em versão anterior do app).
+              </div>
+            )}
+          </div>
+        ) : null}
+      </Drawer>
     </>
   );
 };

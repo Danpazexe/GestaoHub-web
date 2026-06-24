@@ -1059,3 +1059,85 @@ button { cursor: pointer; }
     width: 100%;
   }
 }
+
+/* ── Conferência: porcentagem + detalhe do bônus ── */
+.conference-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+.conference-pill em { font-style: normal; font-weight: 600; opacity: 0.85; }
+.conference-pill.is-lg { font-size: 16px; padding: 6px 14px; }
+.conference-pill.is-ok { background: rgba(37,160,122,0.14); color: var(--accent); }
+.conference-pill.is-warn { background: rgba(160,90,16,0.12); color: var(--warning); }
+.conference-pill.is-danger { background: rgba(191,59,47,0.12); color: var(--danger); }
+.conference-pill.is-neutral { background: rgba(13,31,27,0.06); color: var(--muted); }
+
+.conference-detail { display: flex; flex-direction: column; gap: 16px; }
+.conference-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.conference-detail-head strong { display: block; color: var(--ink); font-size: 15px; }
+.conference-detail-sub { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+
+.conference-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.conference-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.conference-metric-value { font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--ink); }
+.conference-metric-value.is-danger { color: var(--danger); }
+.conference-metric-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+
+.conference-items { width: 100%; border-collapse: collapse; font-size: 13px; }
+.conference-items thead th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.conference-items th.num, .conference-items td.num { text-align: right; white-space: nowrap; }
+.conference-items tbody td { padding: 8px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+.conference-items tbody tr.is-divergent { background: rgba(191,59,47,0.04); }
+.conference-item-code { font-weight: 700; color: var(--ink-2); font-size: 12px; }
+.conference-item-desc { color: var(--muted); font-size: 12px; margin-top: 1px; }
+.conference-diff { font-weight: 700; }
+.conference-diff.is-ok { color: var(--accent); }
+.conference-diff.is-warn { color: var(--warning); }
+.conference-diff.is-danger { color: var(--danger); }
+
+/* Barra de progresso da conferência (bônus em aberto) */
+.conf-progress { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+.conf-progress-track {
+  flex: 1;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(13,31,27,0.08);
+  overflow: hidden;
+}
+.conf-progress-fill { height: 100%; border-radius: 999px; background: var(--accent-2); transition: width 0.3s ease; }
+.conf-progress-fill.is-ok { background: var(--accent); }
+.conf-progress-label { font-size: 12px; font-weight: 700; color: var(--ink-2); min-width: 30px; text-align: right; }
+.conf-progress-empty { font-size: 12px; font-weight: 600; color: var(--muted); }

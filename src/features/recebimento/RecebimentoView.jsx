@@ -16,7 +16,6 @@ const createManualOrderItem = () => ({
 
 export const RecebimentoView = ({
   purchaseOrders,
-  purchaseOrderActions,
   conferenciaRecebimentos,
   xmlImportState,
   purchaseOrderState,
@@ -35,11 +34,20 @@ export const RecebimentoView = ({
   });
   const [manualItems, setManualItems] = useState([createManualOrderItem()]);
 
+  // Pedidos concluídos (encerrado/cancelado) saem da lista de ativos — ficam só
+  // no histórico/auditoria. Encerramos um pedido ao "dar entrada" no bônus dele.
+  const activePurchaseOrders = useMemo(
+    () => (purchaseOrders || []).filter(
+      (row) => row.status !== 'encerrado' && row.status !== 'cancelado',
+    ),
+    [purchaseOrders],
+  );
+
   const receivingSummary = useMemo(() => ({
-    pedidos: (purchaseOrders || []).length,
-    entradas: (purchaseOrders || []).filter((row) => row.entry_status === 'realizada').length,
-    bonus: (purchaseOrders || []).filter((row) => row.bonus_status === 'gerado').length,
-  }), [purchaseOrders]);
+    pedidos: activePurchaseOrders.length,
+    entradas: activePurchaseOrders.filter((row) => row.entry_status === 'realizada').length,
+    bonus: activePurchaseOrders.filter((row) => row.bonus_status === 'gerado').length,
+  }), [activePurchaseOrders]);
 
   const updateHeader = (key, value) => {
     setManualHeader((current) => ({ ...current, [key]: value }));
@@ -260,14 +268,13 @@ export const RecebimentoView = ({
         </div>
       </PanelSection>
 
-      <div className="content-grid two-columns">
-        <PanelSection
-          title="Pedidos de compra"
-          subtitle="Fluxo inspirado em Winthor 1301/1306 para entrada, bônus, devolução e auditoria"
-          kicker="Recebimento"
-        >
+      <PanelSection
+        title="Pedidos de compra"
+        subtitle="Fluxo inspirado em Winthor 1301/1306 para entrada, bônus, devolução e auditoria"
+        kicker="Recebimento"
+      >
           <DataTable
-            rows={purchaseOrders}
+            rows={activePurchaseOrders}
             searchable
             sortable
             pageSize={12}
@@ -308,28 +315,6 @@ export const RecebimentoView = ({
             emptyMessage="Nenhum pedido de compra criado ainda."
           />
         </PanelSection>
-
-        <PanelSection
-          title="Auditoria operacional"
-          subtitle="Trilha completa das ações do recebimento e pós-recebimento"
-          kicker="Auditoria"
-        >
-          <DataTable
-            rows={purchaseOrderActions}
-            searchable
-            pageSize={12}
-            columns={[
-              { key: 'order_number', label: 'Pedido' },
-              { key: 'invoice_number', label: 'NF' },
-              { key: 'supplier_name', label: 'Fornecedor' },
-              { key: 'action_label', label: 'Ação' },
-              { key: 'created_by_name', label: 'Usuário' },
-              { key: 'created_at', label: 'Data', render: (row) => formatDateTime(row.created_at) },
-            ]}
-            emptyMessage="Sem auditoria registrada para pedidos."
-          />
-        </PanelSection>
-      </div>
 
       <PanelSection
         title="Recebimentos do app"

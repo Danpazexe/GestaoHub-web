@@ -70,6 +70,19 @@ export const ConferenciaView = ({
     [assignableUsers],
   );
 
+  // Separa a fila: "em aberto" (ainda conferíveis no celular) x "finalizados"
+  // (já conferidos) — antes ficavam misturados na mesma "Fila de bônus".
+  const openBonusQueue = useMemo(
+    () => (conferenciaBonusQueue || []).filter(
+      (row) => row.status === 'nao_iniciado' || row.status === 'em_conferencia',
+    ),
+    [conferenciaBonusQueue],
+  );
+  const finishedBonusQueue = useMemo(
+    () => (conferenciaBonusQueue || []).filter((row) => row.status === 'finalizada'),
+    [conferenciaBonusQueue],
+  );
+
   const updateHeader = (key, value) => {
     setManualHeader((current) => ({ ...current, [key]: value }));
   };
@@ -237,6 +250,70 @@ export const ConferenciaView = ({
     }
   };
 
+  const reopenBonus = async (row) => {
+    const approved = await confirm({
+      title: 'Reabrir bônus?',
+      description: `A NF ${row.invoice_number || '-'} voltará para a fila e reaparecerá para o conferente conferir novamente no app.`,
+      confirmLabel: 'Reabrir',
+    });
+
+    if (!approved) return;
+
+    const loadingId = toast.loading('Reabrindo bônus...');
+    try {
+      await adminApi.reopenConferenciaBonus(row.id);
+      await onRefresh?.();
+      toast.success('Bônus reaberto e enviado de volta para a fila.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao reabrir o bônus.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
+  const giveEntry = async (row) => {
+    const approved = await confirm({
+      title: 'Dar entrada no bônus?',
+      description: `A NF ${row.invoice_number || '-'} será encerrada (entrada realizada) e sairá da lista de finalizados.`,
+      confirmLabel: 'Dar entrada',
+    });
+
+    if (!approved) return;
+
+    const loadingId = toast.loading('Dando entrada...');
+    try {
+      await adminApi.markConferenciaBonusEntry(row.id);
+      await onRefresh?.();
+      toast.success('Entrada registrada. Bônus encerrado.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao dar entrada no bônus.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
+  const finishWithPendency = async (row) => {
+    const approved = await confirm({
+      title: 'Finalizar com pendência?',
+      description: `A NF ${row.invoice_number || '-'} será marcada como finalizada mesmo sem conferência completa. As divergências/pendências ficam registradas para análise.`,
+      confirmLabel: 'Finalizar com pendência',
+      danger: true,
+    });
+
+    if (!approved) return;
+
+    const loadingId = toast.loading('Finalizando bônus...');
+    try {
+      await adminApi.finishConferenciaBonusWithPendency(row.id);
+      await onRefresh?.();
+      toast.success('Bônus finalizado com pendência.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao finalizar o bônus.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
   return (
     <>
       {ConfirmModalNode}
@@ -380,9 +457,9 @@ export const ConferenciaView = ({
         </PanelSection>
 
         <div className="content-grid two-columns">
-          <PanelSection title="Fila de bônus" subtitle="NFs prontas para conferência no celular" kicker="Recebimento">
+          <PanelSection title={`Bônus em aberto (${openBonusQueue.length})`} subtitle="NFs aguardando conferência no celular" kicker="Recebimento">
             <DataTable
-              rows={conferenciaBonusQueue}
+              rows={openBonusQueue}
               searchable
               sortable
               pageSize={15}
@@ -420,13 +497,18 @@ export const ConferenciaView = ({
                   key: 'actions',
                   label: 'Fila',
                   render: (row) => (
-                    <button type="button" className="table-action-button is-danger" onClick={() => removeQueue(row)} title="Remover da fila">
-                      Remover
-                    </button>
+                    <div className="table-actions-row">
+                      <button type="button" className="table-action-button" onClick={() => finishWithPendency(row)} title="Finalizar mesmo com pendência">
+                        Finalizar c/ pendência
+                      </button>
+                      <button type="button" className="table-action-button is-danger" onClick={() => removeQueue(row)} title="Remover da fila">
+                        Remover
+                      </button>
+                    </div>
                   ),
                 },
               ]}
-              emptyMessage="Nenhum bônus na fila."
+              emptyMessage="Nenhum bônus em aberto."
             />
           </PanelSection>
 
@@ -474,6 +556,45 @@ export const ConferenciaView = ({
             />
           </PanelSection>
         </div>
+
+        <PanelSection
+          title={`Bônus finalizados (${finishedBonusQueue.length})`}
+          subtitle="NFs já conferidas no celular"
+          kicker="Recebimento"
+        >
+          <DataTable
+            rows={finishedBonusQueue}
+            searchable
+            sortable
+            pageSize={10}
+            columns={[
+              { key: 'invoice_number', label: 'NF' },
+              { key: 'supplier_name', label: 'Fornecedor' },
+              { key: 'item_count', label: 'Itens' },
+              { key: 'assigned_user_name', label: 'Conferente', render: (row) => row.assigned_user_name || '—' },
+              { key: 'finished_at', label: 'Finalizado em', render: (row) => formatDateTime(row.finished_at) },
+              { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
+              {
+                key: 'actions',
+                label: 'Fila',
+                render: (row) => (
+                  <div className="table-actions-row">
+                    <button type="button" className="table-action-button" onClick={() => giveEntry(row)} title="Dar entrada e encerrar o bônus">
+                      Dar entrada
+                    </button>
+                    <button type="button" className="table-action-button" onClick={() => reopenBonus(row)} title="Reabrir e enviar de volta ao conferente">
+                      Reabrir
+                    </button>
+                    <button type="button" className="table-action-button is-danger" onClick={() => removeQueue(row)} title="Remover da fila">
+                      Remover
+                    </button>
+                  </div>
+                ),
+              },
+            ]}
+            emptyMessage="Nenhum bônus finalizado."
+          />
+        </PanelSection>
       </div>
     </>
   );

@@ -926,6 +926,148 @@ export const adminApi = {
     }
   },
 
+  // Finaliza um bônus pelo painel mesmo sem conferência completa (override do
+  // admin). Marca a pendência no imported_payload para rastreio, sem exigir
+  // migração de schema.
+  async finishConferenciaBonusWithPendency(id, actorUserId = null) {
+    const { data: current, error: readError } = await supabase
+      .from('conferencia_bonus_queue')
+      .select('imported_payload')
+      .eq('id', id)
+      .single();
+
+    if (readError) {
+      throw new Error(readError.message || 'Falha ao carregar o bônus.');
+    }
+
+    const basePayload = current?.imported_payload && typeof current.imported_payload === 'object'
+      ? current.imported_payload
+      : {};
+
+    const { data, error } = await supabase
+      .from('conferencia_bonus_queue')
+      .update({
+        status: 'finalizada',
+        finished_at: new Date().toISOString(),
+        imported_payload: {
+          ...basePayload,
+          finalized_with_pendency: true,
+          finalized_by_admin: actorUserId || null,
+          finalized_by_admin_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(error.message || 'Falha ao finalizar o bônus com pendência.');
+    }
+
+    return data;
+  },
+
+  // Reabre um bônus finalizado: volta para a fila (nao_iniciado) e reaparece
+  // para o conferente no app. Limpa o marcador de pendência e os timestamps.
+  async reopenConferenciaBonus(id, actorUserId = null) {
+    const { data: current, error: readError } = await supabase
+      .from('conferencia_bonus_queue')
+      .select('imported_payload')
+      .eq('id', id)
+      .single();
+
+    if (readError) {
+      throw new Error(readError.message || 'Falha ao carregar o bônus.');
+    }
+
+    const basePayload = current?.imported_payload && typeof current.imported_payload === 'object'
+      ? current.imported_payload
+      : {};
+
+    const { data, error } = await supabase
+      .from('conferencia_bonus_queue')
+      .update({
+        status: 'nao_iniciado',
+        started_at: null,
+        finished_at: null,
+        imported_payload: {
+          ...basePayload,
+          finalized_with_pendency: false,
+          reopened_by_admin: actorUserId || null,
+          reopened_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(error.message || 'Falha ao reabrir o bônus.');
+    }
+
+    return data;
+  },
+
+  // Dá entrada num bônus finalizado: encerra o ciclo (entrada_realizada) e ele
+  // some das listas (conferente e admin). Mantém o registro para auditoria.
+  async markConferenciaBonusEntry(id, actorUserId = null) {
+    const { data: current, error: readError } = await supabase
+      .from('conferencia_bonus_queue')
+      .select('imported_payload')
+      .eq('id', id)
+      .single();
+
+    if (readError) {
+      throw new Error(readError.message || 'Falha ao carregar o bônus.');
+    }
+
+    const basePayload = current?.imported_payload && typeof current.imported_payload === 'object'
+      ? current.imported_payload
+      : {};
+
+    const nowIso = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('conferencia_bonus_queue')
+      .update({
+        status: 'entrada_realizada',
+        imported_payload: {
+          ...basePayload,
+          entry_done: true,
+          entry_done_by: actorUserId || null,
+          entry_done_at: nowIso,
+        },
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new Error(error.message || 'Falha ao dar entrada no bônus.');
+    }
+
+    // Se o bônus veio de um pedido de compra, encerra o pedido também (sai da
+    // lista de pedidos ativos). Não falha o fluxo do bônus se o pedido der erro.
+    const purchaseOrderId = basePayload?.purchase_order_id || null;
+    if (purchaseOrderId) {
+      const { error: poError } = await supabase
+        .from('purchase_orders')
+        .update({
+          status: 'encerrado',
+          entry_status: 'realizada',
+          entry_at: nowIso,
+          closed_at: nowIso,
+        })
+        .eq('id', purchaseOrderId);
+
+      if (poError) {
+        console.warn('Bônus encerrado, mas falhou ao encerrar o pedido vinculado:', poError.message);
+      }
+    }
+
+    return data;
+  },
+
   async forceSignOut(userId) {
     // RPC SECURITY DEFINER: a RLS owner-only bloqueia o admin de atualizar a
     // presença de outro usuário; a função valida is_admin_user() e retorna

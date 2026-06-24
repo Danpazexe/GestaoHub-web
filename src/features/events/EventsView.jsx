@@ -8,7 +8,7 @@ import { useTableFilter } from '../../hooks/useTableFilter';
 import { exportCsv } from '../../lib/csv';
 import { formatDateTime } from '../../lib/format';
 
-export const EventsView = ({ events }) => {
+export const EventsView = ({ events, purchaseOrderActions }) => {
   const [moduleValue, setModuleValue] = useState('');
   const [eventTypeValue, setEventTypeValue] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -116,6 +116,28 @@ export const EventsView = ({ events }) => {
             },
           ]}
           emptyMessage="Sem eventos de auditoria registrados."
+        />
+      </PanelSection>
+
+      <PanelSection
+        title="Trilha de pedidos (recebimento)"
+        subtitle="Ações registradas nos pedidos: bônus, auditoria, reimpressão e devolução"
+        kicker="Auditoria"
+      >
+        <DataTable
+          rows={purchaseOrderActions || []}
+          searchable
+          sortable
+          pageSize={12}
+          columns={[
+            { key: 'order_number', label: 'Pedido' },
+            { key: 'invoice_number', label: 'NF' },
+            { key: 'supplier_name', label: 'Fornecedor' },
+            { key: 'action_label', label: 'Ação' },
+            { key: 'created_by_name', label: 'Usuário' },
+            { key: 'created_at', label: 'Data', render: (row) => formatDateTime(row.created_at) },
+          ]}
+          emptyMessage="Sem auditoria registrada para pedidos."
         />
       </PanelSection>
     </>

@@ -410,7 +410,6 @@ function App() {
     recebimento: (
       <RecebimentoView
         purchaseOrders={dataState.purchaseOrders}
-        purchaseOrderActions={dataState.purchaseOrderActions}
         conferenciaRecebimentos={dataState.conferenciaRecebimentos}
         xmlImportState={xmlImportState}
         purchaseOrderState={purchaseOrderState}
@@ -433,7 +432,7 @@ function App() {
     ),
     avarias: <AvariasView avarias={dataState.avarias} onRefresh={loadDashboard} />,
     validade: <ValidadeView validade={dataState.validade} onRefresh={loadDashboard} />,
-    events: <EventsView events={dataState.events} />,
+    events: <EventsView events={dataState.events} purchaseOrderActions={dataState.purchaseOrderActions} />,
   };
 
   if (loading) {

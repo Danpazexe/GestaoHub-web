@@ -35,6 +35,7 @@ const initialDataState = {
   conferenciaRecebimentos: [],
   conferenciaSaidas: [],
   conferenciaBonusQueue: [],
+  conferenciaSaidaBonusQueue: [],
   events: [],
   lastRefresh: '',
 };
@@ -86,6 +87,7 @@ function App() {
         conferenciaRecebimentos,
         conferenciaSaidas,
         conferenciaBonusQueue,
+        conferenciaSaidaBonusQueue,
         events,
       ] = await Promise.all([
         adminApi.getDashboardSummary(),
@@ -99,6 +101,7 @@ function App() {
         adminApi.getConferenciaRecebimentos(),
         adminApi.getConferenciaSaidas(),
         adminApi.getConferenciaBonusQueue(),
+        adminApi.getConferenciaSaidaBonusQueue(),
         adminApi.getEvents(),
       ]);
 
@@ -116,6 +119,7 @@ function App() {
         conferenciaRecebimentos,
         conferenciaSaidas,
         conferenciaBonusQueue,
+        conferenciaSaidaBonusQueue,
         events,
         lastRefresh: formatDateTime(new Date().toISOString()),
       });
@@ -382,6 +386,15 @@ function App() {
     await loadDashboard();
   }, [user, loadDashboard]);
 
+  const createManualSaidaBonus = useCallback(async (queueInput, items) => {
+    if (!user) {
+      throw new Error('Sessão admin inválida.');
+    }
+
+    await adminApi.createManualConferenciaSaidaBonus(queueInput, items, user.id);
+    await loadDashboard();
+  }, [user, loadDashboard]);
+
   const viewMap = {
     dashboard: (
       <DashboardView
@@ -424,8 +437,10 @@ function App() {
     conferencia: (
       <ConferenciaView
         conferenciaBonusQueue={dataState.conferenciaBonusQueue}
+        conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
         conferenciaSaidas={dataState.conferenciaSaidas}
         onCreateManualBonus={createManualBonus}
+        onCreateManualSaidaBonus={createManualSaidaBonus}
         assignableUsers={dataState.assignableUsers}
         onRefresh={loadDashboard}
       />

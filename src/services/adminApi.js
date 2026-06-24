@@ -1068,6 +1068,208 @@ export const adminApi = {
     return data;
   },
 
+  // ── Bônus de SAÍDA (conferência de expedição/pedido) — tabela separada ──
+  async getConferenciaSaidaBonusQueue() {
+    return readMany('admin_conferencia_saida_bonus_queue_view', {
+      orderBy: 'created_at',
+      ascending: false,
+      limit: 50,
+    });
+  },
+
+  async createManualConferenciaSaidaBonus(queueInput, items, importedBy) {
+    const orderCode = String(queueInput.order_code || '').trim();
+    if (!orderCode) {
+      throw new Error('Informe o código do pedido de saída.');
+    }
+
+    const normalizedItems = (items || []).map((item, index) => ({
+      ...item,
+      line_number: Number(item.line_number || index + 1),
+      expected_qty: Number(item.expected_qty || 0),
+      packaging_options: Array.isArray(item.packaging_options) ? item.packaging_options : [],
+    })).filter((item) => String(item.description || '').trim());
+
+    if (!normalizedItems.length) {
+      throw new Error('Adicione pelo menos um produto ao bônus de saída.');
+    }
+
+    // Impede dois bônus de saída em aberto para o mesmo pedido.
+    const existingOpen = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .select('id, order_code, status')
+      .eq('order_code', orderCode)
+      .in('status', ['nao_iniciado', 'em_conferencia'])
+      .maybeSingle();
+    if (existingOpen.error) throw existingOpen.error;
+    if (existingOpen.data) {
+      throw new Error(`Já existe um bônus de saída em aberto para o pedido ${orderCode}.`);
+    }
+
+    const { data: queueRow, error: queueError } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .insert([
+        {
+          source_type: 'manual',
+          order_code: orderCode,
+          order_key: orderCode.toUpperCase(),
+          carga_code: queueInput.carga_code || null,
+          customer_name: queueInput.customer_name || null,
+          customer_code: queueInput.customer_code || null,
+          route_code: queueInput.route_code || null,
+          item_count: normalizedItems.length,
+          total_quantity: normalizedItems.reduce((sum, item) => sum + Number(item.expected_qty || 0), 0),
+          status: 'nao_iniciado',
+          imported_by: importedBy || null,
+          imported_payload: { source: 'manual', items: normalizedItems },
+        },
+      ])
+      .select('*')
+      .single();
+
+    if (queueError) throw queueError;
+
+    const payloadItems = normalizedItems.map((item) => ({
+      queue_id: queueRow.id,
+      line_number: Number(item.line_number || 0),
+      code: item.code || null,
+      ean: item.ean || null,
+      dun: item.dun || null,
+      description: item.description,
+      unit: item.unit || null,
+      expected_qty: Number(item.expected_qty || 0),
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('conferencia_saida_bonus_queue_items')
+      .insert(payloadItems);
+
+    if (itemsError) throw itemsError;
+
+    return queueRow;
+  },
+
+  async assignConferenciaSaidaBonus(id, userId, assignedUserName = null) {
+    const { data, error } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .update({
+        assigned_user_id: userId || null,
+        assigned_user_name: assignedUserName || null,
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw new Error(error.message || 'Falha ao atribuir o responsável do bônus de saída.');
+    return data;
+  },
+
+  async removeConferenciaSaidaBonus(id) {
+    const { error } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new Error('Falha ao remover o bônus de saída da fila.');
+  },
+
+  async finishConferenciaSaidaBonusWithPendency(id, actorUserId = null) {
+    const { data: current, error: readError } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .select('imported_payload')
+      .eq('id', id)
+      .single();
+    if (readError) throw new Error(readError.message || 'Falha ao carregar o bônus.');
+
+    const basePayload = current?.imported_payload && typeof current.imported_payload === 'object'
+      ? current.imported_payload
+      : {};
+
+    const { data, error } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .update({
+        status: 'finalizada',
+        finished_at: new Date().toISOString(),
+        imported_payload: {
+          ...basePayload,
+          finalized_with_pendency: true,
+          finalized_by_admin: actorUserId || null,
+          finalized_by_admin_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw new Error(error.message || 'Falha ao finalizar o bônus de saída.');
+    return data;
+  },
+
+  async reopenConferenciaSaidaBonus(id, actorUserId = null) {
+    const { data: current, error: readError } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .select('imported_payload')
+      .eq('id', id)
+      .single();
+    if (readError) throw new Error(readError.message || 'Falha ao carregar o bônus.');
+
+    const basePayload = current?.imported_payload && typeof current.imported_payload === 'object'
+      ? current.imported_payload
+      : {};
+
+    const { data, error } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .update({
+        status: 'nao_iniciado',
+        started_at: null,
+        finished_at: null,
+        imported_payload: {
+          ...basePayload,
+          finalized_with_pendency: false,
+          reopened_by_admin: actorUserId || null,
+          reopened_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw new Error(error.message || 'Falha ao reabrir o bônus de saída.');
+    return data;
+  },
+
+  // "Dar saída" = baixa/expedição do pedido conferido (status terminal).
+  async markConferenciaSaidaBonusExit(id, actorUserId = null) {
+    const { data: current, error: readError } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .select('imported_payload')
+      .eq('id', id)
+      .single();
+    if (readError) throw new Error(readError.message || 'Falha ao carregar o bônus.');
+
+    const basePayload = current?.imported_payload && typeof current.imported_payload === 'object'
+      ? current.imported_payload
+      : {};
+
+    const { data, error } = await supabase
+      .from('conferencia_saida_bonus_queue')
+      .update({
+        status: 'saida_realizada',
+        imported_payload: {
+          ...basePayload,
+          exit_done: true,
+          exit_done_by: actorUserId || null,
+          exit_done_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw new Error(error.message || 'Falha ao dar saída no bônus.');
+    return data;
+  },
+
   async forceSignOut(userId) {
     // RPC SECURITY DEFINER: a RLS owner-only bloqueia o admin de atualizar a
     // presença de outro usuário; a função valida is_admin_user() e retorna

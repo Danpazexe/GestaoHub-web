@@ -9,6 +9,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { useTableFilter } from '../../hooks/useTableFilter';
 import { adminApi } from '../../services/adminApi';
 import { toast } from '../../lib/toast';
+import { exportCsv } from '../../lib/csv';
 import { formatDateTime, truncate } from '../../lib/format';
 
 // Vocabulário canônico de tratativa de validade — MESMOS códigos do app (EN) que o
@@ -50,6 +51,14 @@ export const ValidadeView = ({ validade, onRefresh }) => {
     searchKeys: ['codprod', 'descricao', 'lote'],
     pageSize: 20,
   });
+
+  // Histórico/auditoria de tratativas: produtos já tratados (treatment_date presente).
+  const treatmentHistory = useMemo(
+    () => [...(validade || [])]
+      .filter((row) => row.treatment_date)
+      .sort((left, right) => new Date(right.treatment_date) - new Date(left.treatment_date)),
+    [validade],
+  );
 
   const applyTreatment = async () => {
     if (!treatmentState.row) return;
@@ -216,6 +225,47 @@ export const ValidadeView = ({ validade, onRefresh }) => {
             },
           ]}
           emptyMessage="Nenhum produto de validade encontrado."
+        />
+      </PanelSection>
+
+      <PanelSection
+        title={`Histórico de tratativas (${treatmentHistory.length})`}
+        subtitle="Auditoria: quem tratou cada produto, quando e com qual tipo"
+        kicker="Rastreabilidade"
+        actions={treatmentHistory.length > 0 ? (
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => exportCsv(treatmentHistory, [
+              { key: 'user_name', label: 'Operador' },
+              { key: 'codprod', label: 'Código' },
+              { key: 'descricao', label: 'Descrição' },
+              { key: 'lote', label: 'Lote' },
+              { key: 'treatment', label: 'Tratativa', format: (row) => treatmentLabel(row.treatment_type) },
+              { key: 'treatment_note', label: 'Observação' },
+              { key: 'treatment_date', label: 'Data', format: (row) => formatDateTime(row.treatment_date) },
+            ], 'tratativas-validade')}
+            title="Exportar histórico"
+          >
+            Exportar CSV
+          </button>
+        ) : null}
+      >
+        <DataTable
+          rows={treatmentHistory}
+          searchable
+          sortable
+          pageSize={15}
+          columns={[
+            { key: 'user_name', label: 'Operador', render: (row) => row.user_name || row.user_email || '—' },
+            { key: 'codprod', label: 'Código' },
+            { key: 'descricao', label: 'Descrição', render: (row) => truncate(row.descricao, 48) },
+            { key: 'lote', label: 'Lote' },
+            { key: 'treatment_type', label: 'Tratativa', render: (row) => treatmentLabel(row.treatment_type) },
+            { key: 'treatment_note', label: 'Observação', render: (row) => row.treatment_note || '—' },
+            { key: 'treatment_date', label: 'Tratado em', render: (row) => formatDateTime(row.treatment_date) },
+          ]}
+          emptyMessage="Nenhuma tratativa registrada ainda."
         />
       </PanelSection>
     </>

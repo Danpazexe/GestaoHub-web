@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAdminSession } from './hooks/useAdminSession';
+import { navItems } from './config/navigation';
 import { LoginForm } from './components/LoginForm';
 import { AdminShell } from './components/AdminShell';
 import { adminApi } from './services/adminApi';
@@ -43,7 +45,12 @@ const initialDataState = {
 
 function App() {
   const { loading, user, profile, admin, error, reload } = useAdminSession();
-  const [selectedView, setSelectedView] = useState('dashboard');
+  // Navegação por URL (deep-link, voltar/avançar e refresh preservam a view).
+  const navigate = useNavigate();
+  const location = useLocation();
+  const routeKey = location.pathname.replace(/^\/+/, '').split('/')[0];
+  const selectedView = navItems.some((item) => item.key === routeKey) ? routeKey : 'dashboard';
+  const setSelectedView = useCallback((key) => navigate(`/${key}`), [navigate]);
   const [dataState, setDataState] = useState(initialDataState);
   const [xmlImportState, setXmlImportState] = useState({
     loading: false,

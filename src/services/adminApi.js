@@ -1,11 +1,21 @@
 import { supabase } from '../lib/supabase';
 
+// Relação inexistente (view ainda não migrada) — PostgREST não a acha no schema cache.
+const isMissingRelationError = (error) => {
+  const code = String(error?.code || '');
+  const msg = String(error?.message || '').toLowerCase();
+  return code === 'PGRST205' || code === '42P01'
+    || msg.includes('could not find the table')
+    || msg.includes('schema cache');
+};
+
 const readMany = async (table, options = {}) => {
   const {
     columns = '*',
     orderBy,
     ascending = false,
     limit,
+    optional = false,
   } = options;
 
   let query = supabase.from(table).select(columns);
@@ -19,7 +29,14 @@ const readMany = async (table, options = {}) => {
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    // Uma view ainda não migrada não pode derrubar o painel inteiro: degrada p/ vazio.
+    if (optional && isMissingRelationError(error)) {
+      console.warn(`[adminApi] Relação ausente (rode a migração do schema): ${table}. Retornando vazio.`, error.message);
+      return [];
+    }
+    throw error;
+  }
   return data || [];
 };
 
@@ -393,6 +410,7 @@ export const adminApi = {
       orderBy: 'created_at',
       ascending: false,
       limit: 200,
+      optional: true, // view nova: se ainda não migrada, retorna [] em vez de quebrar o painel
     });
   },
 

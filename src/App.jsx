@@ -36,6 +36,7 @@ const initialDataState = {
   conferenciaSaidas: [],
   conferenciaBonusQueue: [],
   conferenciaSaidaBonusQueue: [],
+  conferenciaDivergencias: [],
   events: [],
   lastRefresh: '',
 };
@@ -88,6 +89,7 @@ function App() {
         conferenciaSaidas,
         conferenciaBonusQueue,
         conferenciaSaidaBonusQueue,
+        conferenciaDivergencias,
         events,
       ] = await Promise.all([
         adminApi.getDashboardSummary(),
@@ -102,6 +104,7 @@ function App() {
         adminApi.getConferenciaSaidas(),
         adminApi.getConferenciaBonusQueue(),
         adminApi.getConferenciaSaidaBonusQueue(),
+        adminApi.getConferenciaDivergencias(),
         adminApi.getEvents(),
       ]);
 
@@ -120,6 +123,7 @@ function App() {
         conferenciaSaidas,
         conferenciaBonusQueue,
         conferenciaSaidaBonusQueue,
+        conferenciaDivergencias,
         events,
         lastRefresh: formatDateTime(new Date().toISOString()),
       });
@@ -439,6 +443,7 @@ function App() {
         conferenciaBonusQueue={dataState.conferenciaBonusQueue}
         conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
         conferenciaSaidas={dataState.conferenciaSaidas}
+        conferenciaDivergencias={dataState.conferenciaDivergencias}
         onCreateManualBonus={createManualBonus}
         onCreateManualSaidaBonus={createManualSaidaBonus}
         assignableUsers={dataState.assignableUsers}

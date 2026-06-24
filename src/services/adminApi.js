@@ -388,6 +388,14 @@ export const adminApi = {
     });
   },
 
+  async getConferenciaDivergencias() {
+    return readMany('admin_conferencia_divergencias_view', {
+      orderBy: 'created_at',
+      ascending: false,
+      limit: 200,
+    });
+  },
+
   async getConferenciaBonusQueue() {
     return readMany('admin_conferencia_bonus_queue_view', {
       orderBy: 'created_at',

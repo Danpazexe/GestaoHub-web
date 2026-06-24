@@ -107,6 +107,7 @@ export const ConferenciaView = ({
   conferenciaBonusQueue,
   conferenciaSaidaBonusQueue,
   conferenciaSaidas,
+  conferenciaDivergencias = [],
   onCreateManualBonus,
   onCreateManualSaidaBonus,
   assignableUsers,
@@ -1030,6 +1031,60 @@ export const ConferenciaView = ({
                 },
               ]}
               emptyMessage="Nenhum pedido de saída finalizado."
+            />
+          </PanelSection>
+
+          <PanelSection
+            title={`Divergências (${(conferenciaDivergencias || []).length})`}
+            subtitle="Itens conferidos com quantidade diferente da esperada (recebimento e saída)"
+            kicker="Conferência"
+            actions={(conferenciaDivergencias || []).length > 0 ? (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => exportCsv(conferenciaDivergencias, [
+                  { key: 'source', label: 'Origem' },
+                  { key: 'code', label: 'Código' },
+                  { key: 'description', label: 'Descrição' },
+                  { key: 'expected_qty', label: 'Esperado' },
+                  { key: 'checked_qty', label: 'Conferido' },
+                  { key: 'diff', label: 'Diferença' },
+                  { key: 'status', label: 'Status' },
+                  { key: 'user_name', label: 'Operador' },
+                  { key: 'created_at', label: 'Data', format: (row) => formatDateTime(row.created_at) },
+                ], 'divergencias')}
+                title="Exportar divergências"
+              >
+                Exportar CSV
+              </button>
+            ) : null}
+          >
+            <DataTable
+              rows={conferenciaDivergencias || []}
+              searchable
+              sortable
+              pageSize={15}
+              columns={[
+                { key: 'source', label: 'Origem', render: (row) => (row.source === 'saida' ? 'Saída' : 'Recebimento') },
+                { key: 'code', label: 'Código', render: (row) => row.code || '—' },
+                { key: 'description', label: 'Descrição', render: (row) => (row.description || '').slice(0, 48) || '—' },
+                { key: 'reference', label: 'Referência', render: (row) => row.order_code || row.invoice || row.supplier || '—' },
+                { key: 'expected_qty', label: 'Esperado' },
+                { key: 'checked_qty', label: 'Conferido' },
+                {
+                  key: 'diff',
+                  label: 'Diferença',
+                  render: (row) => (
+                    <strong className={Number(row.diff) < 0 ? 'days-critical' : 'days-warning'}>
+                      {Number(row.diff) > 0 ? '+' : ''}{row.diff}
+                    </strong>
+                  ),
+                },
+                { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status || 'pendente'} /> },
+                { key: 'user_name', label: 'Operador', render: (row) => row.user_name || row.user_email || '—' },
+                { key: 'created_at', label: 'Registrada', render: (row) => formatDateTime(row.created_at) },
+              ]}
+              emptyMessage="Nenhuma divergência registrada."
             />
           </PanelSection>
         </div>

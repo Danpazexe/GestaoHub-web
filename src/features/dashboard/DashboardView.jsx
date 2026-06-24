@@ -19,7 +19,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { AppIcon } from '../../components/AppIcon';
 import { formatDateTime, formatRelativeMinutes } from '../../lib/format';
 
-const chartColors = ['#1b6b52', '#1d55c8', '#a05a10', '#bf3b2f', '#607870'];
+const chartColors = ['#b07d12', '#2563eb', '#b9760f', '#c8372d', '#6a7791'];
 
 const formatShortDate = (value) => {
   if (!value) return '-';
@@ -66,10 +66,10 @@ export const DashboardView = ({
 
   const validadeBuckets = useMemo(() => {
     const buckets = [
-      { name: 'Até 7 dias', value: 0, fill: '#bf3b2f' },
-      { name: '8 a 15 dias', value: 0, fill: '#a05a10' },
-      { name: '16 a 30 dias', value: 0, fill: '#ffb319' },
-      { name: 'Mais de 30 dias', value: 0, fill: '#1b6b52' },
+      { name: 'Até 7 dias', value: 0, fill: '#c8372d' },
+      { name: '8 a 15 dias', value: 0, fill: '#b9760f' },
+      { name: '16 a 30 dias', value: 0, fill: '#e0b34d' },
+      { name: 'Mais de 30 dias', value: 0, fill: '#1b8a5a' },
     ];
 
     (validade || []).forEach((row) => {
@@ -102,9 +102,9 @@ export const DashboardView = ({
                   <YAxis allowDecimals={false} />
                   <Tooltip />
                   <Legend />
-                  <Area type="monotone" dataKey="ABERTA" stroke="#a05a10" fill="#a05a10" fillOpacity={0.15} strokeWidth={2} />
-                  <Area type="monotone" dataKey="EM ANDAMENTO" stroke="#1d55c8" fill="#1d55c8" fillOpacity={0.15} strokeWidth={2} />
-                  <Area type="monotone" dataKey="ENCERRADA" stroke="#1b6b52" fill="#1b6b52" fillOpacity={0.15} strokeWidth={2} />
+                  <Area type="monotone" dataKey="ABERTA" stroke="#b9760f" fill="#b9760f" fillOpacity={0.16} strokeWidth={2} />
+                  <Area type="monotone" dataKey="EM ANDAMENTO" stroke="#2563eb" fill="#2563eb" fillOpacity={0.16} strokeWidth={2} />
+                  <Area type="monotone" dataKey="ENCERRADA" stroke="#1b8a5a" fill="#1b8a5a" fillOpacity={0.16} strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

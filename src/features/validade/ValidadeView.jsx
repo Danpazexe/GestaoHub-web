@@ -11,13 +11,26 @@ import { adminApi } from '../../services/adminApi';
 import { toast } from '../../lib/toast';
 import { formatDateTime, truncate } from '../../lib/format';
 
+// Vocabulário canônico de tratativa de validade — MESMOS códigos do app (EN) que o
+// CHECK do banco (ck_validade_treatment_type) aceita: sold/exchanged/returned/expired.
+// Rótulo PT fica só na UI. Antes a web gravava recolhimento/descarte/promoção/devolução,
+// valores que o CHECK rejeita — toda "Aplicar tratativa" falharia no banco.
+const VALIDADE_TREATMENTS = {
+  sold: 'Vendido',
+  exchanged: 'Trocado',
+  returned: 'Devolvido',
+  expired: 'Vencido',
+};
+const DEFAULT_TREATMENT = 'sold';
+const treatmentLabel = (value) => VALIDADE_TREATMENTS[value] || value || '-';
+
 export const ValidadeView = ({ validade, onRefresh }) => {
   const { confirm, ConfirmModalNode } = useConfirm();
   const [statusValue, setStatusValue] = useState('');
   const [maxDays, setMaxDays] = useState('');
   const [treatmentState, setTreatmentState] = useState({
     row: null,
-    treatment_type: 'recolhimento',
+    treatment_type: DEFAULT_TREATMENT,
     observacao: '',
     loading: false,
   });
@@ -52,7 +65,7 @@ export const ValidadeView = ({ validade, onRefresh }) => {
       toast.success('Tratativa aplicada com sucesso.');
       setTreatmentState({
         row: null,
-        treatment_type: 'recolhimento',
+        treatment_type: DEFAULT_TREATMENT,
         observacao: '',
         loading: false,
       });
@@ -93,7 +106,7 @@ export const ValidadeView = ({ validade, onRefresh }) => {
         title={`Aplicar tratativa em ${treatmentState.row?.codprod || ''}`}
         onClose={() => setTreatmentState({
           row: null,
-          treatment_type: 'recolhimento',
+          treatment_type: DEFAULT_TREATMENT,
           observacao: '',
           loading: false,
         })}
@@ -102,10 +115,9 @@ export const ValidadeView = ({ validade, onRefresh }) => {
           <label className="builder-field">
             <span>Tratativa</span>
             <select value={treatmentState.treatment_type} onChange={(event) => setTreatmentState((current) => ({ ...current, treatment_type: event.target.value }))}>
-              <option value="recolhimento">recolhimento</option>
-              <option value="descarte">descarte</option>
-              <option value="promoção">promoção</option>
-              <option value="devolução">devolução</option>
+              {Object.entries(VALIDADE_TREATMENTS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
             </select>
           </label>
           <label className="builder-field">
@@ -176,7 +188,7 @@ export const ValidadeView = ({ validade, onRefresh }) => {
             {
               key: 'treatment_type',
               label: 'Tratativa',
-              render: (row) => row.treatment_type || '-',
+              render: (row) => treatmentLabel(row.treatment_type),
             },
             {
               key: 'updated_at',
@@ -190,7 +202,7 @@ export const ValidadeView = ({ validade, onRefresh }) => {
                 <div className="table-actions-row">
                   <button type="button" className="table-action-button" onClick={() => setTreatmentState({
                     row,
-                    treatment_type: row.treatment_type || 'recolhimento',
+                    treatment_type: VALIDADE_TREATMENTS[row.treatment_type] ? row.treatment_type : DEFAULT_TREATMENT,
                     observacao: '',
                     loading: false,
                   })} title="Aplicar tratativa">

@@ -39,6 +39,40 @@
   --sb-w-mini: 72px;
 }
 
+/* ─── dark mode (toggle via data-theme no <html>) ─────────── */
+:root[data-theme='dark'] {
+  --ink:    #e9edf6;
+  --ink-2:  #d3dae9;
+  --ink-3:  #aab3c8;
+  --muted:  #8b97b2;
+  --muted-2:#6c7894;
+
+  --bg:        #0f1422;
+  --surface:   #1a2233;
+  --surface-2: #151c2c;
+
+  --accent:    #e0b34d;
+  --accent-2:  #c8901f;
+  --accent-3:  #f0cf86;
+  --primary:   #e9edf6;
+  --success:   #34c98a;
+  --danger:    #ff6b5e;
+  --warning:   #e3ab40;
+  --info:      #5b8def;
+
+  --line:   rgba(255, 255, 255, 0.09);
+  --line-2: rgba(255, 255, 255, 0.05);
+
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.40);
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.30);
+}
+/* superfícies com branco fixo precisam de override no dark */
+:root[data-theme='dark'] .topbar { background: rgba(18, 24, 38, 0.72); }
+:root[data-theme='dark'] .ghost-button { background: rgba(255, 255, 255, 0.04); color: var(--ink-2); }
+:root[data-theme='dark'] .ghost-button:hover { background: rgba(255, 255, 255, 0.09); }
+:root[data-theme='dark'] .empty-state { background: rgba(255, 255, 255, 0.03); }
+
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 

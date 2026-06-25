@@ -63,6 +63,31 @@ export const MonitorView = ({
     { tone: 'info', icon: 'conferencia', label: 'Bônus em conferência', value: inConference, hint: 'Tarefas em andamento na operação', to: 'conferencia' },
   ].filter((a) => a.value > 0);
 
+  const idleCount = (activeUsers || []).filter((u) => u.status === 'idle').length;
+
+  const inProgress = useMemo(() => {
+    const mapKind = (rows, kind) => (rows || [])
+      .filter((q) => q.status === 'em_conferencia')
+      .map((q) => {
+        const total = num(q.total_quantity);
+        const checked = num(q.checked_quantity);
+        const pct = total > 0 ? Math.min(100, Math.round((checked / total) * 100)) : 0;
+        const startedAt = q.started_at ? new Date(q.started_at).getTime() : null;
+        const mins = startedAt ? Math.max(0, Math.round((Date.now() - startedAt) / 60000)) : null;
+        return {
+          key: `${kind}-${q.id}`,
+          name: kind === 'saida' ? (q.order_code || 'Pedido') : (q.invoice_number || 'NF'),
+          sub: kind === 'saida' ? (q.customer_name || 'Saída') : (q.supplier_name || 'Recebimento'),
+          operator: q.assigned_user_name || 'sem operador',
+          pct,
+          mins,
+          stalled: mins != null && mins >= 30 && pct < 100,
+        };
+      });
+    return [...mapKind(conferenciaBonusQueue, 'entrada'), ...mapKind(conferenciaSaidaBonusQueue, 'saida')]
+      .sort((a, b) => (Number(b.stalled) - Number(a.stalled)) || ((b.mins || 0) - (a.mins || 0)));
+  }, [conferenciaBonusQueue, conferenciaSaidaBonusQueue]);
+
   return (
     <>
       <section className="monitor-tiles" aria-label="Indicadores de monitoramento">
@@ -85,7 +110,7 @@ export const MonitorView = ({
       <div className="content-grid two-columns">
         <PanelSection
           title="Operadores ao vivo"
-          subtitle={`${onlineCount} em atividade · atualizado ${lastRefresh || '-'}`}
+          subtitle={`${onlineCount} em atividade${idleCount ? ` · ${idleCount} ocioso${idleCount > 1 ? 's' : ''}` : ''} · atualizado ${lastRefresh || '-'}`}
           kicker="Presença"
           actions={<button type="button" className="ghost-button" onClick={() => onSelectView?.('users')}>Ver todos</button>}
         >
@@ -129,6 +154,28 @@ export const MonitorView = ({
           )}
         </PanelSection>
       </div>
+
+      {inProgress.length ? (
+        <PanelSection title="Filas em andamento" subtitle="Bônus sendo conferidos agora — progresso e tempo" kicker="Conferência">
+          <div className="monitor-queues">
+            {inProgress.map((q) => (
+              <div className={`monitor-queue ${q.stalled ? 'is-stalled' : ''}`} key={q.key}>
+                <div className="monitor-queue-head">
+                  <strong>{q.name}</strong>
+                  <span className="monitor-queue-meta">
+                    {q.sub} · {q.operator}{q.mins != null ? ` · há ${q.mins} min` : ''}
+                    {q.stalled ? <span className="monitor-queue-stalled">parada</span> : null}
+                  </span>
+                </div>
+                <div className="monitor-prog">
+                  <div className="monitor-prog-track"><div className="monitor-prog-fill" style={{ width: `${q.pct}%` }} /></div>
+                  <span className="monitor-prog-label">{q.pct}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </PanelSection>
+      ) : null}
 
       <PanelSection
         title="Atividade recente"

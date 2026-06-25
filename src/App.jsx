@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAdminSession } from './hooks/useAdminSession';
 import { navItems } from './config/navigation';
+import { useRealtimeRefresh } from './hooks/useRealtimeRefresh';
 import { LoginForm } from './components/LoginForm';
 import { AdminShell } from './components/AdminShell';
 import { adminApi } from './services/adminApi';
@@ -45,6 +46,20 @@ const initialDataState = {
   events: [],
   lastRefresh: '',
 };
+
+// Tabelas operacionais observadas em tempo real (precisam estar na publication
+// supabase_realtime no banco — ver schema.sql). Sem isso, o polling segue valendo.
+const REALTIME_TABLES = [
+  'user_presence',
+  'conferencia_bonus_queue',
+  'conferencia_saida_bonus_queue',
+  'conferencia_divergencias',
+  'recebimento_treatment_cases',
+  'avaria_items',
+  'validade_products',
+  'operational_events',
+  'purchase_orders',
+];
 
 function App() {
   const { loading, user, profile, admin, error, reload } = useAdminSession();
@@ -157,6 +172,10 @@ function App() {
 
     return () => window.clearInterval(timer);
   }, [user, admin, loadDashboard]);
+
+  // Realtime: qualquer mudança nas tabelas operacionais dispara um refresh (debounced),
+  // deixando o painel ao vivo sem esperar o intervalo de polling.
+  useRealtimeRefresh(loadDashboard, { tables: REALTIME_TABLES, enabled: Boolean(user && admin) });
 
   const signOut = async () => {
     await adminApi.signOut();

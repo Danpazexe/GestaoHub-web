@@ -1226,3 +1226,19 @@ button { cursor: pointer; }
 .monitor-alert.is-warn .monitor-alert-icon  { background: rgba(185, 118, 15, 0.12); color: var(--warning); }
 .monitor-alert.is-warn .monitor-alert-count { color: var(--warning); }
 .monitor-alert.is-info .monitor-alert-icon  { background: rgba(37, 99, 235, 0.10); color: var(--info); }
+
+.monitor-queues { display: grid; gap: 12px; }
+.monitor-queue { padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); }
+.monitor-queue.is-stalled { border-color: rgba(200, 55, 45, 0.30); background: rgba(200, 55, 45, 0.04); }
+.monitor-queue-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.monitor-queue-head strong { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--ink); }
+.monitor-queue-meta { font-size: 11px; color: var(--muted); display: inline-flex; align-items: center; gap: 7px; }
+.monitor-queue-stalled {
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--danger); background: rgba(200, 55, 45, 0.12); padding: 2px 7px; border-radius: 999px;
+}
+.monitor-prog { display: flex; align-items: center; gap: 10px; }
+.monitor-prog-track { flex: 1; height: 8px; border-radius: 999px; background: rgba(128, 132, 148, 0.22); overflow: hidden; }
+.monitor-prog-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-2), var(--accent)); transition: width 0.3s ease; }
+.monitor-queue.is-stalled .monitor-prog-fill { background: var(--danger); }
+.monitor-prog-label { font-family: var(--font-display); font-size: 12px; font-weight: 700; color: var(--ink-2); min-width: 34px; text-align: right; }

@@ -10,6 +10,7 @@ import { formatDateTime } from './lib/format';
 import { parseNfeXml } from './lib/nfeXml';
 // Views carregadas sob demanda (code splitting) — cada módulo vira um chunk próprio,
 // reduzindo o bundle inicial (charts/recharts só carregam ao abrir o dashboard).
+const MonitorView = lazy(() => import('./features/monitor/MonitorView').then((m) => ({ default: m.MonitorView })));
 const DashboardView = lazy(() => import('./features/dashboard/DashboardView').then((m) => ({ default: m.DashboardView })));
 const OverviewView = lazy(() => import('./features/overview/OverviewView').then((m) => ({ default: m.OverviewView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
@@ -51,7 +52,7 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const routeKey = location.pathname.replace(/^\/+/, '').split('/')[0];
-  const selectedView = navItems.some((item) => item.key === routeKey) ? routeKey : 'dashboard';
+  const selectedView = navItems.some((item) => item.key === routeKey) ? routeKey : 'monitor';
   const setSelectedView = useCallback((key) => navigate(`/${key}`), [navigate]);
   const [dataState, setDataState] = useState(initialDataState);
   const [xmlImportState, setXmlImportState] = useState({
@@ -409,6 +410,19 @@ function App() {
   }, [user, loadDashboard]);
 
   const viewMap = {
+    monitor: (
+      <MonitorView
+        summary={dataState.summary}
+        activeUsers={dataState.activeUsers}
+        conferenciaBonusQueue={dataState.conferenciaBonusQueue}
+        conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
+        conferenciaDivergencias={dataState.conferenciaDivergencias}
+        validade={dataState.validade}
+        events={dataState.events}
+        lastRefresh={dataState.lastRefresh}
+        onSelectView={setSelectedView}
+      />
+    ),
     dashboard: (
       <DashboardView
         summaryCards={summaryCards}
@@ -487,7 +501,7 @@ function App() {
         {dataState.error ? <div className="feedback error">{dataState.error}</div> : null}
         {dataState.loading ? <div className="inline-loading">Atualizando dados...</div> : null}
         <Suspense fallback={<div className="inline-loading">Carregando módulo...</div>}>
-          {viewMap[selectedView] || viewMap.dashboard}
+          {viewMap[selectedView] || viewMap.monitor}
         </Suspense>
       </AdminShell>
     </>

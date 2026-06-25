@@ -1,4 +1,7 @@
 const icons = {
+  monitor: (
+    <path d="M3 12h3.5l2 6 3.5-13 2.5 9 1.5-4h5" />
+  ),
   dashboard: (
     <>
       <path d="M5 19V9" />

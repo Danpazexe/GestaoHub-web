@@ -3,6 +3,7 @@ export const navGroups = [
     key: 'general',
     label: 'Geral',
     items: [
+      { key: 'monitor', label: 'Monitoramento', shortLabel: 'MO', icon: 'monitor' },
       { key: 'dashboard', label: 'Dashboard', shortLabel: 'DB', icon: 'dashboard' },
       { key: 'overview', label: 'Visão geral', shortLabel: 'VG', icon: 'overview' },
       { key: 'users', label: 'Usuários online', shortLabel: 'UO', icon: 'users' },

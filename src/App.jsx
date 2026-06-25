@@ -6,6 +6,7 @@ import { navItems } from './config/navigation';
 import { useRealtimeRefresh } from './hooks/useRealtimeRefresh';
 import { LoginForm } from './components/LoginForm';
 import { AdminShell } from './components/AdminShell';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { adminApi } from './services/adminApi';
 import { formatDateTime } from './lib/format';
 import { parseNfeXml } from './lib/nfeXml';
@@ -519,9 +520,11 @@ function App() {
       >
         {dataState.error ? <div className="feedback error">{dataState.error}</div> : null}
         {dataState.loading ? <div className="inline-loading">Atualizando dados...</div> : null}
-        <Suspense fallback={<div className="inline-loading">Carregando módulo...</div>}>
-          {viewMap[selectedView] || viewMap.monitor}
-        </Suspense>
+        <ErrorBoundary key={selectedView}>
+          <Suspense fallback={<div className="inline-loading">Carregando módulo...</div>}>
+            {viewMap[selectedView] || viewMap.monitor}
+          </Suspense>
+        </ErrorBoundary>
       </AdminShell>
     </>
   );

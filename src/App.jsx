@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAdminSession } from './hooks/useAdminSession';
@@ -12,9 +12,10 @@ import { formatDateTime } from './lib/format';
 import { parseNfeXml } from './lib/nfeXml';
 // Views carregadas sob demanda (code splitting) — cada módulo vira um chunk próprio,
 // reduzindo o bundle inicial (charts/recharts só carregam ao abrir o dashboard).
-const MonitorView = lazy(() => import('./features/monitor/MonitorView').then((m) => ({ default: m.MonitorView })));
-const DashboardView = lazy(() => import('./features/dashboard/DashboardView').then((m) => ({ default: m.DashboardView })));
-const OverviewView = lazy(() => import('./features/overview/OverviewView').then((m) => ({ default: m.OverviewView })));
+// Tela inicial unificada (Monitoramento + Dashboard + Visão geral) com controle
+// segmentado "Tempo real / Análise". MonitorView/DashboardView viram sub-componentes
+// internos do InicioView (recharts continua em lazy no segmento Análise).
+const InicioView = lazy(() => import('./features/inicio/InicioView').then((m) => ({ default: m.InicioView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
 const TratativasView = lazy(() => import('./features/tratativas/TratativasView').then((m) => ({ default: m.TratativasView })));
 const RecebimentoView = lazy(() => import('./features/recebimento/RecebimentoView').then((m) => ({ default: m.RecebimentoView })));
@@ -27,6 +28,10 @@ const EventsView = lazy(() => import('./features/events/EventsView').then((m) =>
 // espaçamos para 3 min (antes 45s) para economizar requisições. O botão
 // "Atualizar" continua disponível para refresh sob demanda.
 const REFRESH_INTERVAL_MS = 180000;
+
+// View padrão (landing) e redirecionamento das rotas legadas para a tela unificada.
+const DEFAULT_VIEW = 'inicio';
+const LEGACY_REDIRECTS = { monitor: 'inicio', dashboard: 'inicio', overview: 'inicio' };
 
 const initialDataState = {
   loading: true,
@@ -68,8 +73,14 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const routeKey = location.pathname.replace(/^\/+/, '').split('/')[0];
-  const selectedView = navItems.some((item) => item.key === routeKey) ? routeKey : 'monitor';
+  const selectedView = navItems.some((item) => item.key === routeKey) ? routeKey : DEFAULT_VIEW;
   const setSelectedView = useCallback((key) => navigate(`/${key}`), [navigate]);
+
+  // Rotas legadas (/monitor /dashboard /overview) → tela unificada /inicio.
+  useEffect(() => {
+    const target = LEGACY_REDIRECTS[routeKey];
+    if (target) navigate(`/${target}`, { replace: true });
+  }, [routeKey, navigate]);
   const [dataState, setDataState] = useState(initialDataState);
   const [xmlImportState, setXmlImportState] = useState({
     loading: false,
@@ -181,42 +192,6 @@ function App() {
   const signOut = async () => {
     await adminApi.signOut();
   };
-
-  const summaryCards = useMemo(() => {
-    const summary = dataState.summary || {};
-    return [
-      {
-        label: 'Usuários ativos',
-        value: summary.active_users,
-        accent: 'linear-gradient(135deg, #ff7a18 0%, #ffb800 100%)',
-        note: 'Baseado em `user_presence`.',
-      },
-      {
-        label: 'Tratativas abertas',
-        value: summary.open_tratativas,
-        accent: 'linear-gradient(135deg, #e74c3c 0%, #ff8f70 100%)',
-        note: 'ABERTA, EM ANDAMENTO e AGUARDANDO.',
-      },
-      {
-        label: 'Avarias abertas',
-        value: summary.open_avaria_items,
-        accent: 'linear-gradient(135deg, #00796b 0%, #32b39a 100%)',
-        note: 'Itens com status `damaged`.',
-      },
-      {
-        label: 'Divergências pendentes',
-        value: summary.pending_divergencias,
-        accent: 'linear-gradient(135deg, #3957ff 0%, #7da2ff 100%)',
-        note: 'Lidas da tabela de divergências.',
-      },
-      {
-        label: 'Bônus na fila',
-        value: summary.open_bonus_queue,
-        accent: 'linear-gradient(135deg, #1c7c54 0%, #88d498 100%)',
-        note: 'Notas importadas para recebimento.',
-      },
-    ];
-  }, [dataState.summary]);
 
   const importXml = useCallback(async (event) => {
     const file = event.target.files?.[0];
@@ -430,38 +405,19 @@ function App() {
   }, [user, loadDashboard]);
 
   const viewMap = {
-    monitor: (
-      <MonitorView
+    inicio: (
+      <InicioView
         summary={dataState.summary}
         activeUsers={dataState.activeUsers}
+        tratativas={dataState.tratativas}
+        avarias={dataState.avarias}
+        validade={dataState.validade}
+        events={dataState.events}
         conferenciaBonusQueue={dataState.conferenciaBonusQueue}
         conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
         conferenciaDivergencias={dataState.conferenciaDivergencias}
-        validade={dataState.validade}
-        events={dataState.events}
-        lastRefresh={dataState.lastRefresh}
-        onSelectView={setSelectedView}
-      />
-    ),
-    dashboard: (
-      <DashboardView
-        summaryCards={summaryCards}
-        tratativas={dataState.tratativas}
-        avarias={dataState.avarias}
-        activeUsers={dataState.activeUsers}
-        events={dataState.events}
-        validade={dataState.validade}
-        onSelectView={setSelectedView}
-      />
-    ),
-    overview: (
-      <OverviewView
-        summaryCards={summaryCards}
-        activeUsers={dataState.activeUsers}
-        tratativas={dataState.tratativas}
-        avarias={dataState.avarias}
-        validade={dataState.validade}
         conferenciaRecebimentos={dataState.conferenciaRecebimentos}
+        lastRefresh={dataState.lastRefresh}
         onSelectView={setSelectedView}
       />
     ),
@@ -522,7 +478,7 @@ function App() {
         {dataState.loading ? <div className="inline-loading">Atualizando dados...</div> : null}
         <ErrorBoundary key={selectedView}>
           <Suspense fallback={<div className="inline-loading">Carregando módulo...</div>}>
-            {viewMap[selectedView] || viewMap.monitor}
+            {viewMap[selectedView] || viewMap[DEFAULT_VIEW]}
           </Suspense>
         </ErrorBoundary>
       </AdminShell>

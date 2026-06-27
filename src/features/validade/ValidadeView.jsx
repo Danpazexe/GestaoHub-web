@@ -3,6 +3,7 @@ import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { SeverityBadge } from '../../components/SeverityBadge';
+import { FilterChips } from '../../components/FilterChips';
 import { Drawer } from '../../components/Drawer';
 import { SelectFilter } from '../../components/SelectFilter';
 import { SearchInput } from '../../components/SearchInput';
@@ -270,6 +271,16 @@ export const ValidadeView = ({ validade, onRefresh }) => {
             <button type="button" className={viewMode === 'table' ? 'segmented-btn active' : 'segmented-btn'} onClick={() => setViewMode('table')}>Tabela</button>
           </div>
         </div>
+
+        <FilterChips
+          chips={[
+            faixaValue && { key: 'faixa', label: `Faixa: ${FAIXA_OPTIONS.find((o) => o.value === faixaValue)?.label || faixaValue}`, onRemove: () => setFaixaValue('') },
+            statusValue && { key: 'status', label: `Status: ${statusValue}`, onRemove: () => setStatusValue('') },
+            semImagem && { key: 'semimg', label: 'Sem imagem', onRemove: () => setSemImagem(false) },
+            search && { key: 'busca', label: `Busca: "${search}"`, onRemove: () => setSearch('') },
+          ]}
+          onClear={() => { setFaixaValue(''); setStatusValue(''); setSemImagem(false); setSearch(''); }}
+        />
 
         {viewMode === 'cards' ? (
           filtered.length ? (

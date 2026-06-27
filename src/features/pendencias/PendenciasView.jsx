@@ -4,6 +4,7 @@ import { DataTable } from '../../components/DataTable';
 import { SelectFilter } from '../../components/SelectFilter';
 import { SearchInput } from '../../components/SearchInput';
 import { SeverityBadge, PriorityBadge, SlaBadge } from '../../components/SeverityBadge';
+import { FilterChips } from '../../components/FilterChips';
 import { exportCsv } from '../../lib/csv';
 import { formatRelativeMinutes } from '../../lib/format';
 import { severityMeta } from '../../lib/severity';
@@ -162,6 +163,17 @@ export const PendenciasView = ({
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar pendência, NF, código, responsável" />
           </div>
         </div>
+
+        <FilterChips
+          chips={[
+            priority && { key: 'prio', label: `Prioridade: ${PRIORITY_OPTIONS.find((o) => o.value === priority)?.label || priority}`, onRemove: () => setPriority('') },
+            severity && { key: 'sev', label: `Gravidade: ${SEVERITY_OPTIONS.find((o) => o.value === severity)?.label || severity}`, onRemove: () => setSeverity('') },
+            moduleValue && { key: 'mod', label: `Módulo: ${moduleValue}`, onRemove: () => setModuleValue('') },
+            responsible && { key: 'resp', label: `Responsável: ${responsible}`, onRemove: () => setResponsible('') },
+            search && { key: 'busca', label: `Busca: "${search}"`, onRemove: () => setSearch('') },
+          ]}
+          onClear={() => { setPriority(''); setSeverity(''); setModuleValue(''); setResponsible(''); setSearch(''); }}
+        />
 
         <DataTable
           rows={filtered}

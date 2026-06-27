@@ -40,6 +40,28 @@ const readMany = async (table, options = {}) => {
   return data || [];
 };
 
+// Migração gradual para o schema em português (briefing §7): tenta ler de uma
+// view em português (colunas aliasadas de volta aos nomes internos via
+// "interno:coluna_pt"); se a view não existe ou falta alguma coluna (migração
+// 0006/0007 ainda não aplicada), cai para a view admin_*_view antiga. Seguro
+// antes e depois de aplicar o SQL — nunca quebra silenciosamente.
+const readPt = async ({ ptTable, select, orderBy, ascending = false, limit, fallback }) => {
+  try {
+    if (!supabase) throw new Error('no-client');
+    let query = supabase.from(ptTable).select(select);
+    if (orderBy) query = query.order(orderBy, { ascending });
+    if (typeof limit === 'number') query = query.limit(limit);
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (ptError) {
+    if (ptError?.message !== 'no-client') {
+      console.warn(`[adminApi] view pt "${ptTable}" indisponível; usando ${fallback.table}.`, ptError?.message || '');
+    }
+    return readMany(fallback.table, fallback.options);
+  }
+};
+
 // Resolve o nome do ator dos eventos pelo profiles (caso actor_name tenha vindo nulo do app).
 const attachActor = async (rows) => {
   const ids = [...new Set((rows || []).map((row) => row.user_id).filter(Boolean))];
@@ -283,15 +305,21 @@ export const adminApi = {
   },
 
   async getDashboardSummary() {
-    const rows = await readMany('admin_dashboard_summary_view', { limit: 1 });
+    const rows = await readPt({
+      ptTable: 'sistema_resumo_dashboard',
+      select: 'active_users:usuarios_ativos, open_tratativas:tratativas_abertas, active_validade_products:produtos_validade_ativos, open_avaria_batches:lotes_avaria_abertos, open_avaria_items:itens_avaria_abertos, open_bonus_queue:fila_bonus_aberta, pending_divergencias:divergencias_pendentes',
+      limit: 1,
+      fallback: { table: 'admin_dashboard_summary_view', options: { limit: 1 } },
+    });
     return rows[0] || null;
   },
 
   async getActiveUsers() {
-    return readMany('admin_active_users_view', {
-      orderBy: 'last_heartbeat_at',
-      ascending: false,
-      limit: 40,
+    return readPt({
+      ptTable: 'usuarios_colaboradores_ativos',
+      select: 'session_id:sessao_id, user_id:usuario_id, name:nome, email, device_label:dispositivo, platform:plataforma, app_version:versao_app, current_module:modulo_atual, current_screen:tela_atual, current_order_ref:pedido_atual, status:situacao, last_heartbeat_at:ultimo_heartbeat',
+      orderBy: 'ultimo_heartbeat', ascending: false, limit: 40,
+      fallback: { table: 'admin_active_users_view', options: { orderBy: 'last_heartbeat_at', ascending: false, limit: 40 } },
     });
   },
 
@@ -369,18 +397,20 @@ export const adminApi = {
   },
 
   async getTratativas() {
-    return readMany('admin_tratativas_view', {
-      orderBy: 'updated_at',
-      ascending: false,
-      limit: 50,
+    return readPt({
+      ptTable: 'recebimento_tratativas',
+      select: 'user_id:usuario_id, user_name:nome_usuario, user_email:email_usuario, id, doc_number:numero_documento, supplier_code:codigo_fornecedor, origin_invoice_number:nf_origem, return_invoice_number:nf_devolucao, status:situacao, occurrence_type:tipo_ocorrencia, resolution_type:tipo_resolucao, affected_quantity:quantidade_afetada, expected_quantity:quantidade_esperada, received_quantity:quantidade_recebida, opened_at:aberta_em, closed_at:fechada_em, status_updated_at:situacao_atualizada_em, created_at:criado_em, updated_at:atualizado_em',
+      orderBy: 'atualizado_em', ascending: false, limit: 50,
+      fallback: { table: 'admin_tratativas_view', options: { orderBy: 'updated_at', ascending: false, limit: 50 } },
     });
   },
 
   async getValidade() {
-    return readMany('admin_validade_products_view', {
-      orderBy: 'updated_at',
-      ascending: false,
-      limit: 50,
+    return readPt({
+      ptTable: 'validade_produtos',
+      select: 'user_id:usuario_id, user_name:nome_usuario, user_email:email_usuario, id, codprod:codigo_produto, codauxiliar:codigo_auxiliar, descricao, lote, validade:data_validade, quantidade, diasrestantes:dias_restantes, location:localizacao, status:situacao, treatment_type:tipo_tratativa, treatment_quantity:quantidade_tratada, treatment_date:data_tratativa, treatment_note:observacao_tratativa, image_path:caminho_imagem, created_at:criado_em, updated_at:atualizado_em',
+      orderBy: 'atualizado_em', ascending: false, limit: 50,
+      fallback: { table: 'admin_validade_products_view', options: { orderBy: 'updated_at', ascending: false, limit: 50 } },
     });
   },
 
@@ -401,43 +431,47 @@ export const adminApi = {
   },
 
   async getConferenciaSaidas() {
-    return readMany('admin_conferencia_saidas_view', {
-      orderBy: 'updated_at',
-      ascending: false,
-      limit: 30,
+    return readPt({
+      ptTable: 'conferencia_saidas_pt',
+      select: 'user_id:usuario_id, user_name:nome_usuario, user_email:email_usuario, id, order_code:codigo_pedido, separador, embalador, sync_status:situacao_sync, items_count:qtd_itens, divergences_count:qtd_divergencias, created_at:criado_em, updated_at:atualizado_em',
+      orderBy: 'atualizado_em', ascending: false, limit: 30,
+      fallback: { table: 'admin_conferencia_saidas_view', options: { orderBy: 'updated_at', ascending: false, limit: 30 } },
     });
   },
 
   async getConferenciaDivergencias() {
-    return readMany('admin_conferencia_divergencias_view', {
-      orderBy: 'created_at',
-      ascending: false,
-      limit: 200,
-      optional: true, // view nova: se ainda não migrada, retorna [] em vez de quebrar o painel
+    return readPt({
+      ptTable: 'conferencia_divergencias_pt',
+      select: 'user_id:usuario_id, user_name:nome_usuario, user_email:email_usuario, id, source:origem, status:situacao, code:codigo, description:descricao, supplier:fornecedor, invoice:nf, order_code:codigo_pedido, expected_qty:quantidade_esperada, checked_qty:quantidade_conferida, diff:diferenca, created_at:criado_em, updated_at:atualizado_em',
+      orderBy: 'criado_em', ascending: false, limit: 200,
+      fallback: { table: 'admin_conferencia_divergencias_view', options: { orderBy: 'created_at', ascending: false, limit: 200, optional: true } },
     });
   },
 
   async getConferenciaBonusQueue() {
-    return readMany('admin_conferencia_bonus_queue_view', {
-      orderBy: 'created_at',
-      ascending: false,
-      limit: 50,
+    return readPt({
+      ptTable: 'conferencia_fila_entrada',
+      select: 'id, invoice_number:numero_nf, supplier_name:nome_fornecedor, item_count:qtd_itens, total_quantity:quantidade_total, checked_quantity:quantidade_conferida, status:situacao, assigned_user_id:responsavel_id, assigned_user_name:responsavel_nome, started_at:iniciada_em, finished_at:finalizada_em, conference_result:resultado_conferencia, divergence_count:qtd_divergencias, finalized_with_pendency:finalizada_com_pendencia, created_at:criado_em',
+      orderBy: 'criado_em', ascending: false, limit: 50,
+      fallback: { table: 'admin_conferencia_bonus_queue_view', options: { orderBy: 'created_at', ascending: false, limit: 50 } },
     });
   },
 
   async getPurchaseOrders() {
-    return readMany('admin_purchase_orders_view', {
-      orderBy: 'created_at',
-      ascending: false,
-      limit: 80,
+    return readPt({
+      ptTable: 'recebimento_notas_entrada',
+      select: 'id, order_number:numero_pedido, source_type:tipo_origem, supplier_name:nome_fornecedor, supplier_code:codigo_fornecedor, supplier_document:documento_fornecedor, invoice_number:numero_nf, issued_at:emitida_em, status:situacao, entry_status:situacao_entrada, bonus_status:situacao_bonus, return_status:situacao_devolucao, audit_status:situacao_auditoria, item_count:qtd_itens, total_quantity:quantidade_total, reprint_count:qtd_reimpressoes, entry_at:entrada_em, audited_at:auditada_em, closed_at:fechada_em, created_by_name:criado_por_nome, created_at:criado_em, updated_at:atualizado_em',
+      orderBy: 'criado_em', ascending: false, limit: 80,
+      fallback: { table: 'admin_purchase_orders_view', options: { orderBy: 'created_at', ascending: false, limit: 80 } },
     });
   },
 
   async getPurchaseOrderActions() {
-    return readMany('admin_purchase_order_actions_view', {
-      orderBy: 'created_at',
-      ascending: false,
-      limit: 80,
+    return readPt({
+      ptTable: 'recebimento_acoes_pedido',
+      select: 'id, order_id:pedido_id, created_by_name:criado_por_nome, order_number:numero_pedido, invoice_number:numero_nf, supplier_name:nome_fornecedor, action_type:tipo_acao, action_label:rotulo_acao, notes:observacao, created_at:criado_em',
+      orderBy: 'criado_em', ascending: false, limit: 80,
+      fallback: { table: 'admin_purchase_order_actions_view', options: { orderBy: 'created_at', ascending: false, limit: 80 } },
     });
   },
 
@@ -814,11 +848,17 @@ export const adminApi = {
   },
 
   async getEvents() {
-    const rows = await readMany('operational_events', {
-      columns: 'id, module, event_type, entity_type, entity_id, actor_name, order_ref, batch_ref, created_at, payload, user_id',
-      orderBy: 'created_at',
-      ascending: false,
-      limit: 60,
+    const rows = await readPt({
+      ptTable: 'auditoria_eventos',
+      select: 'id, user_id:usuario_id, module:modulo, event_type:tipo_evento, entity_type:tipo_entidade, entity_id:entidade_id, actor_name:nome_ator, order_ref:pedido_ref, batch_ref:lote_ref, payload:dados, created_at:criado_em',
+      orderBy: 'criado_em', ascending: false, limit: 60,
+      fallback: {
+        table: 'operational_events',
+        options: {
+          columns: 'id, module, event_type, entity_type, entity_id, actor_name, order_ref, batch_ref, created_at, payload, user_id',
+          orderBy: 'created_at', ascending: false, limit: 60,
+        },
+      },
     });
     return attachActor(rows);
   },
@@ -1099,10 +1139,11 @@ export const adminApi = {
 
   // ── Bônus de SAÍDA (conferência de expedição/pedido) — tabela separada ──
   async getConferenciaSaidaBonusQueue() {
-    return readMany('admin_conferencia_saida_bonus_queue_view', {
-      orderBy: 'created_at',
-      ascending: false,
-      limit: 50,
+    return readPt({
+      ptTable: 'conferencia_fila_saida',
+      select: 'id, order_code:codigo_pedido, customer_name:nome_cliente, customer_code:codigo_cliente, route_code:codigo_rota, carga_code:codigo_carga, item_count:qtd_itens, total_quantity:quantidade_total, checked_quantity:quantidade_conferida, status:situacao, assigned_user_id:responsavel_id, assigned_user_name:responsavel_nome, started_at:iniciada_em, finished_at:finalizada_em, conference_result:resultado_conferencia, divergence_count:qtd_divergencias, finalized_with_pendency:finalizada_com_pendencia, created_at:criado_em',
+      orderBy: 'criado_em', ascending: false, limit: 50,
+      fallback: { table: 'admin_conferencia_saida_bonus_queue_view', options: { orderBy: 'created_at', ascending: false, limit: 50 } },
     });
   },
 

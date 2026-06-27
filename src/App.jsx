@@ -20,6 +20,7 @@ const PendenciasView = lazy(() => import('./features/pendencias/PendenciasView')
 const FornecedoresView = lazy(() => import('./features/fornecedores/FornecedoresView').then((m) => ({ default: m.FornecedoresView })));
 const QualidadeView = lazy(() => import('./features/qualidade/QualidadeView').then((m) => ({ default: m.QualidadeView })));
 const RankingView = lazy(() => import('./features/ranking/RankingView').then((m) => ({ default: m.RankingView })));
+const IndicadoresView = lazy(() => import('./features/indicadores/IndicadoresView').then((m) => ({ default: m.IndicadoresView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
 const TratativasView = lazy(() => import('./features/tratativas/TratativasView').then((m) => ({ default: m.TratativasView })));
 const RecebimentoView = lazy(() => import('./features/recebimento/RecebimentoView').then((m) => ({ default: m.RecebimentoView })));
@@ -435,6 +436,18 @@ function App() {
         conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
         purchaseOrders={dataState.purchaseOrders}
         onSelectView={setSelectedView}
+      />
+    ),
+    indicadores: (
+      <IndicadoresView
+        validade={dataState.validade}
+        conferenciaBonusQueue={dataState.conferenciaBonusQueue}
+        conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
+        conferenciaDivergencias={dataState.conferenciaDivergencias}
+        purchaseOrders={dataState.purchaseOrders}
+        avarias={dataState.avarias}
+        activeUsers={dataState.activeUsers}
+        events={dataState.events}
       />
     ),
     users: <UsersView activeUsers={dataState.activeUsers} onRefresh={loadDashboard} />,

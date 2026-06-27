@@ -4,7 +4,8 @@ export const navGroups = [
     label: 'Geral',
     items: [
       { key: 'inicio', label: 'Início', shortLabel: 'IN', icon: 'overview' },
-      { key: 'users', label: 'Usuários online', shortLabel: 'UO', icon: 'users' },
+      { key: 'indicadores', label: 'Indicadores', shortLabel: 'ID', icon: 'dashboard' },
+      { key: 'users', label: 'Colaboradores', shortLabel: 'CO', icon: 'users' },
       { key: 'events', label: 'Auditoria', shortLabel: 'AU', icon: 'events' },
     ],
   },

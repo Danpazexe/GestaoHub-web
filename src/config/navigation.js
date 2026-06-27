@@ -39,6 +39,7 @@ export const navGroups = [
     items: [
       { key: 'configuracoes', label: 'Configurações', shortLabel: 'CG', icon: 'config' },
       { key: 'admin', label: 'Administração', shortLabel: 'AD', icon: 'admin' },
+      { key: 'logs', label: 'Logs técnicos', shortLabel: 'LG', icon: 'logs' },
     ],
   },
 ];

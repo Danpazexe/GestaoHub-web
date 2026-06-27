@@ -139,6 +139,25 @@ const icons = {
       <circle cx="16" cy="6" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="18" cy="18" r="2" />
     </>
   ),
+  logs: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="m7 9 3 3-3 3M13 15h4" />
+    </>
+  ),
+  aprovacoes: (
+    <>
+      <path d="M9 12l2 2 4-4" />
+      <path d="M12 3 4 7v5c0 5 3.5 8 8 9 4.5-1 8-4 8-9V7l-8-4Z" />
+    </>
+  ),
+  importacao: (
+    <>
+      <path d="M12 3v12" />
+      <path d="m8 11 4 4 4-4" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </>
+  ),
 };
 
 export const AppIcon = ({ name, size = 18, className = '' }) => (

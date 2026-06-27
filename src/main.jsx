@@ -2,7 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { initGlobalLogger } from './lib/logger';
 import './styles.css';
+
+// Captura erros globais para a tela de Logs técnicos (briefing §34.17).
+initGlobalLogger();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

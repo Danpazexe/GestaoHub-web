@@ -10,6 +10,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { adminApi } from './services/adminApi';
 import { formatDateTime } from './lib/format';
 import { parseNfeXml } from './lib/nfeXml';
+import { logError } from './lib/logger';
 // Views carregadas sob demanda (code splitting) — cada módulo vira um chunk próprio,
 // reduzindo o bundle inicial (charts/recharts só carregam ao abrir o dashboard).
 // Tela inicial unificada (Monitoramento + Dashboard + Visão geral) com controle
@@ -25,6 +26,7 @@ const TvView = lazy(() => import('./features/tv/TvView').then((m) => ({ default:
 const AdminCenterView = lazy(() => import('./features/admin/AdminCenterView').then((m) => ({ default: m.AdminCenterView })));
 const ConfiguracoesView = lazy(() => import('./features/configuracoes/ConfiguracoesView').then((m) => ({ default: m.ConfiguracoesView })));
 const FechamentoView = lazy(() => import('./features/fechamento/FechamentoView').then((m) => ({ default: m.FechamentoView })));
+const LogsView = lazy(() => import('./features/logs/LogsView').then((m) => ({ default: m.LogsView })));
 const MapaView = lazy(() => import('./features/mapa/MapaView').then((m) => ({ default: m.MapaView })));
 const RelatoriosView = lazy(() => import('./features/relatorios/RelatoriosView').then((m) => ({ default: m.RelatoriosView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
@@ -176,6 +178,7 @@ function App() {
         lastRefresh: formatDateTime(new Date().toISOString()),
       });
     } catch (loadError) {
+      logError('Falha ao carregar o painel', loadError?.message || String(loadError));
       setDataState((current) => ({
         ...current,
         loading: false,
@@ -507,6 +510,7 @@ function App() {
     ),
     qualidade: <QualidadeView validade={dataState.validade} />,
     configuracoes: <ConfiguracoesView />,
+    logs: <LogsView />,
     relatorios: (
       <RelatoriosView
         validade={dataState.validade}

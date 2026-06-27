@@ -15,7 +15,7 @@ const buildMapa = (pendencias) => {
   for (const p of pendencias) {
     const key = groupOf(p);
     if (!groups.has(key)) {
-      groups.set(key, { name: key, total: 0, validade: 0, avarias: 0, divergencias: 0, notas: 0, conferencias: 0, maxSeverityWeight: 0 });
+      groups.set(key, { name: key, total: 0, validade: 0, avarias: 0, divergencias: 0, notas: 0, conferencias: 0, tratativas: 0, outros: 0, maxSeverityWeight: 0 });
     }
     const g = groups.get(key);
     g.total += 1;
@@ -24,6 +24,8 @@ const buildMapa = (pendencias) => {
     else if (p.type === 'divergencia') g.divergencias += 1;
     else if (p.source === 'purchase_order') g.notas += 1;
     else if (p.source === 'conferencia' || p.source === 'conferencia_saida') g.conferencias += 1;
+    else if (p.source === 'tratativa') g.tratativas += 1;
+    else g.outros += 1; // qualquer fonte futura não prevista cai aqui (nunca some do card)
     g.maxSeverityWeight = Math.max(g.maxSeverityWeight, severityMeta(p.severity).weight);
   }
 
@@ -70,6 +72,8 @@ export const MapaView = (data) => {
                 {group.avarias > 0 ? <li><span>Avarias</span><strong>{group.avarias}</strong></li> : null}
                 {group.conferencias > 0 ? <li><span>Conferências paradas</span><strong>{group.conferencias}</strong></li> : null}
                 {group.notas > 0 ? <li><span>Notas pendentes</span><strong>{group.notas}</strong></li> : null}
+                {group.tratativas > 0 ? <li><span>Tratativas abertas</span><strong>{group.tratativas}</strong></li> : null}
+                {group.outros > 0 ? <li><span>Outras pendências</span><strong>{group.outros}</strong></li> : null}
                 {group.total === 0 ? <li className="mapa-ok">Sem pendência</li> : null}
               </ul>
             </article>

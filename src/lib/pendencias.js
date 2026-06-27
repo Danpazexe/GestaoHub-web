@@ -88,7 +88,9 @@ const fromDivergencias = (divergencias = [], now) => {
       sector: readSector(row),
       branch: readBranch(row),
       priority: 'alta',
-      severity: sla.severity,
+      // Item sempre aberto: nunca rotular como "resolvido" só porque ainda está
+      // dentro do prazo de SLA (piso de gravidade em "atenção").
+      severity: sla.severity === 'resolvido' ? 'atencao' : sla.severity,
       statusText: `divergência ${sla.text}`,
       metric: Number(row.diff) || 0,
       since: row.created_at || null,
@@ -118,7 +120,8 @@ const fromAvarias = (avarias = [], now) => {
       sector: readSector(row),
       branch: readBranch(row),
       priority: sla.status === 'critico' || sla.status === 'atrasado' ? 'alta' : 'media',
-      severity: sla.severity,
+      // Avaria aberta nunca deve aparecer como "resolvido" dentro do prazo.
+      severity: sla.severity === 'resolvido' ? 'atencao' : sla.severity,
       statusText: `avaria aberta ${sla.text}`,
       metric: Number(row.quantidade) || 0,
       since: row.item_updated_at || null,

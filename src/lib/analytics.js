@@ -149,7 +149,8 @@ export const buildProductRanking = ({ validade = [], avarias = [], conferenciaDi
   };
 
   for (const row of validade) {
-    if (row.status === 'resolved') continue;
+    // Conta só validade em aberto (tratado/resolvido já saiu do problema).
+    if (row.status === 'resolved' || row.status === 'treated') continue;
     const e = ensure(row.codprod, row.descricao);
     if (!e) continue;
     e.vencimentos += 1;
@@ -158,12 +159,14 @@ export const buildProductRanking = ({ validade = [], avarias = [], conferenciaDi
     if (e.description === '—' && row.descricao) e.description = row.descricao;
   }
   for (const row of avarias) {
+    if (row.item_status !== 'damaged') continue; // só avarias abertas
     const e = ensure(row.codprod, row.descricao);
     if (!e) continue;
     e.avarias += 1;
     e.lastAt = latest(e.lastAt, row.item_updated_at);
   }
   for (const row of conferenciaDivergencias) {
+    if (String(row.status || 'pendente') === 'resolvida') continue; // só pendentes
     const e = ensure(row.code, row.description);
     if (!e) continue;
     e.divergencias += 1;

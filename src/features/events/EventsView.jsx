@@ -24,7 +24,7 @@ export const EventsView = ({ events, purchaseOrderActions }) => {
 
     const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0;
     if (startDate && createdAt < new Date(`${startDate}T00:00:00`).getTime()) return false;
-    if (endDate && createdAt > new Date(`${endDate}T23:59:59`).getTime()) return false;
+    if (endDate && createdAt > new Date(`${endDate}T23:59:59.999`).getTime()) return false;
     return true;
   }), [events, moduleValue, eventTypeValue, startDate, endDate]);
 

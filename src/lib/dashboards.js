@@ -150,7 +150,10 @@ export const computeMetaProgress = (data = {}, metas = {}) => {
     const src = sources[key] || { current: 0, universe: 0 };
     const { current, universe } = src;
     const pct = universe > 0 ? Math.round(((universe - current) / universe) * 100) : (current === 0 ? 100 : 0);
-    const achieved = current <= (meta.target ?? 0);
+    // Metas percentuais comparam o % concluído; metas "zerar" comparam a contagem.
+    const achieved = meta.type === 'percentual'
+      ? pct >= (meta.target ?? 100)
+      : current <= (meta.target ?? 0);
     const tone = achieved ? 'success' : pct >= 66 ? 'warning' : 'danger';
     return { key, ...meta, current, universe, pct, achieved, tone };
   });

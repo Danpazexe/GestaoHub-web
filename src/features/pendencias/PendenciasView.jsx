@@ -19,11 +19,11 @@ const PRIORITY_OPTIONS = [
   { value: 'baixa', label: 'Prioridade baixa' },
 ];
 
+// Apenas as gravidades realmente produzidas pelo motor de pendências.
 const SEVERITY_OPTIONS = [
   { value: 'critico', label: 'Crítico' },
   { value: 'atencao', label: 'Atenção' },
   { value: 'monitorar', label: 'Monitorar' },
-  { value: 'informativo', label: 'Informativo' },
 ];
 
 // Central de pendências (briefing §5 prioridade automática + §6 fila inteligente).

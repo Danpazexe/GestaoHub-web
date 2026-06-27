@@ -23,8 +23,9 @@ export const SLA_RULES = {
 
 export const SLA_STATUS = {
   dentro: { key: 'dentro', label: 'Dentro do prazo', tone: 'success', severity: 'resolvido' },
-  proximo: { key: 'proximo', label: 'Próximo do limite', tone: 'warning', severity: 'atencao' },
-  atrasado: { key: 'atrasado', label: 'Atrasado', tone: 'monitor', severity: 'atencao' },
+  // Escalada visual de urgência: monitor (amarelo) < warning (laranja) < danger.
+  proximo: { key: 'proximo', label: 'Próximo do limite', tone: 'monitor', severity: 'atencao' },
+  atrasado: { key: 'atrasado', label: 'Atrasado', tone: 'warning', severity: 'atencao' },
   critico: { key: 'critico', label: 'Crítico', tone: 'danger', severity: 'critico' },
 };
 

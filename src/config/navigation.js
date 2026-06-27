@@ -19,6 +19,7 @@ export const navGroups = [
       { key: 'tratativas', label: 'Tratativas', shortLabel: 'TR', icon: 'tratativas' },
       { key: 'avarias', label: 'Avarias', shortLabel: 'AV', icon: 'avarias' },
       { key: 'validade', label: 'Validade', shortLabel: 'VA', icon: 'validade' },
+      { key: 'fechamento', label: 'Fechamento diário', shortLabel: 'FD', icon: 'fechamento' },
     ],
   },
   {

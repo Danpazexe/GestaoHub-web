@@ -49,7 +49,7 @@
 .login-brand::before {
   content: ''; position: absolute; top: -80px; right: -80px;
   width: 360px; height: 360px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(252,150,78,0.18), transparent 65%);
+  background: radial-gradient(circle, rgba(37, 99, 235,0.18), transparent 65%);
   pointer-events: none;
 }
 .login-brand::after {
@@ -131,7 +131,7 @@
   border: 1.5px solid var(--line); background: var(--surface);
   color: var(--ink); transition: border-color 0.15s, box-shadow 0.15s; outline: none;
 }
-.field input:focus { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(252,150,78,0.16); }
+.field input:focus { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(37, 99, 235,0.16); }
 .field input::placeholder { color: var(--muted-2); }
 
 /* ─── buttons ─────────────────────────────────────────────── */
@@ -152,7 +152,7 @@
   transition: background 0.16s, border-color 0.16s, transform 0.16s;
   display: flex; align-items: center; gap: 7px;
 }
-.ghost-button:hover { background: var(--surface-2); border-color: rgba(252, 150, 78,0.35); transform: translateY(-1px); }
+.ghost-button:hover { background: var(--surface-2); border-color: rgba(37, 99, 235,0.35); transform: translateY(-1px); }
 
 .danger-button {
   padding: 9px 17px; border: 1.5px solid rgba(239,68,68,0.20);

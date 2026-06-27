@@ -83,7 +83,7 @@
 .nav-item:hover .nav-icon { opacity: 1; }
 .nav-item.active {
   background: rgba(255,255,255,0.06);
-  color: #ffffff; border-color: rgba(252, 150, 78,0.30);
+  color: #ffffff; border-color: rgba(37, 99, 235,0.30);
 }
 .nav-item.active::before {
   content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;

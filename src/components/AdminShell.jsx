@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { navGroups, navItems } from '../config/navigation';
 import { AppIcon } from './AppIcon';
 import { GlobalSearch } from './GlobalSearch';
+import { NotificationsBell } from './NotificationsBell';
 
 export const AdminShell = ({
   profile,
@@ -175,6 +176,7 @@ export const AdminShell = ({
               </button>
               <span className="topbar-refresh-note">Atualizado: {lastRefresh}</span>
               <span className="live-badge" aria-label="Sistema operacional">Ao vivo</span>
+              <NotificationsBell data={searchData} onNavigate={onSelectView} />
               <button
                 className="ghost-button"
                 onClick={() => onSelectView('tv')}

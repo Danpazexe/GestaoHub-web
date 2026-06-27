@@ -1383,3 +1383,42 @@ button { cursor: pointer; }
   .data-table td { padding: 9px 12px; font-size: 12.5px; }
   .data-table thead th { padding: 9px 12px; }
 }
+
+/* ─── central de pendências (briefing §5/§6) ──────────────── */
+.pendencia-cards {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.pendencia-card {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 16px 18px; border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.pendencia-card-value { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: var(--ink); line-height: 1; }
+.pendencia-card-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+.fila-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: fila; }
+.fila-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--line-2);
+}
+.fila-index {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  background: var(--grad-cta); color: #1e2433; font-weight: 800; font-size: 13px;
+}
+.fila-label { flex: 1; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.fila-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 22px; padding: 0 8px; border-radius: 99px;
+  background: var(--neutral-soft); color: var(--ink-2); font-weight: 700; font-size: 12px;
+}
+.pendencia-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.pendencia-muted { color: var(--muted-2); font-style: italic; font-size: 12px; }
+.pendencia-status { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+
+@media (max-width: 900px) {
+  .pendencia-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

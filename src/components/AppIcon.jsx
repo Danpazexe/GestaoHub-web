@@ -65,6 +65,40 @@ const icons = {
       <path d="M10 14h4" />
     </>
   ),
+  pendencias: (
+    <>
+      <path d="M12 3 2 20h20L12 3Z" />
+      <path d="M12 10v4" />
+      <path d="M12 17h.01" />
+    </>
+  ),
+  fornecedores: (
+    <>
+      <path d="M3 9h18l-1.5 10.5a1 1 0 0 1-1 .5H5.5a1 1 0 0 1-1-.5L3 9Z" />
+      <path d="M8 9V6a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  qualidade: (
+    <>
+      <path d="M9 11l3 3 8-8" />
+      <path d="M20 12a8 8 0 1 1-5-7.4" />
+    </>
+  ),
+  ranking: (
+    <>
+      <path d="M7 20V10" />
+      <path d="M12 20V4" />
+      <path d="M17 20v-7" />
+      <path d="M4 20h16" />
+    </>
+  ),
+  tv: (
+    <>
+      <rect x="3" y="5" width="18" height="12" rx="2" />
+      <path d="M8 21h8" />
+      <path d="M12 17v4" />
+    </>
+  ),
 };
 
 export const AppIcon = ({ name, size = 18, className = '' }) => (

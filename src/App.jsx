@@ -16,6 +16,7 @@ import { parseNfeXml } from './lib/nfeXml';
 // segmentado "Tempo real / Análise". MonitorView/DashboardView viram sub-componentes
 // internos do InicioView (recharts continua em lazy no segmento Análise).
 const InicioView = lazy(() => import('./features/inicio/InicioView').then((m) => ({ default: m.InicioView })));
+const PendenciasView = lazy(() => import('./features/pendencias/PendenciasView').then((m) => ({ default: m.PendenciasView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
 const TratativasView = lazy(() => import('./features/tratativas/TratativasView').then((m) => ({ default: m.TratativasView })));
 const RecebimentoView = lazy(() => import('./features/recebimento/RecebimentoView').then((m) => ({ default: m.RecebimentoView })));
@@ -418,6 +419,18 @@ function App() {
         conferenciaDivergencias={dataState.conferenciaDivergencias}
         conferenciaRecebimentos={dataState.conferenciaRecebimentos}
         lastRefresh={dataState.lastRefresh}
+        onSelectView={setSelectedView}
+      />
+    ),
+    pendencias: (
+      <PendenciasView
+        validade={dataState.validade}
+        conferenciaDivergencias={dataState.conferenciaDivergencias}
+        avarias={dataState.avarias}
+        tratativas={dataState.tratativas}
+        conferenciaBonusQueue={dataState.conferenciaBonusQueue}
+        conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
+        purchaseOrders={dataState.purchaseOrders}
         onSelectView={setSelectedView}
       />
     ),

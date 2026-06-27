@@ -12,6 +12,7 @@ export const navGroups = [
     key: 'operation',
     label: 'Operação',
     items: [
+      { key: 'pendencias', label: 'Pendências', shortLabel: 'PE', icon: 'pendencias' },
       { key: 'recebimento', label: 'Recebimento', shortLabel: 'RC', icon: 'recebimento' },
       { key: 'conferencia', label: 'Conferências', shortLabel: 'CF', icon: 'conferencia' },
       { key: 'tratativas', label: 'Tratativas', shortLabel: 'TR', icon: 'tratativas' },

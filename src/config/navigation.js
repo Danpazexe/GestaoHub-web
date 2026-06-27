@@ -17,6 +17,7 @@ export const navGroups = [
       { key: 'recebimento', label: 'Recebimento', shortLabel: 'RC', icon: 'recebimento' },
       { key: 'conferencia', label: 'Conferências', shortLabel: 'CF', icon: 'conferencia' },
       { key: 'tratativas', label: 'Tratativas', shortLabel: 'TR', icon: 'tratativas' },
+      { key: 'aprovacoes', label: 'Aprovações', shortLabel: 'AP', icon: 'aprovacoes' },
       { key: 'avarias', label: 'Avarias', shortLabel: 'AV', icon: 'avarias' },
       { key: 'validade', label: 'Validade', shortLabel: 'VA', icon: 'validade' },
       { key: 'fechamento', label: 'Fechamento diário', shortLabel: 'FD', icon: 'fechamento' },

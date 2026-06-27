@@ -28,6 +28,7 @@ const ConfiguracoesView = lazy(() => import('./features/configuracoes/Configurac
 const FechamentoView = lazy(() => import('./features/fechamento/FechamentoView').then((m) => ({ default: m.FechamentoView })));
 const LogsView = lazy(() => import('./features/logs/LogsView').then((m) => ({ default: m.LogsView })));
 const ImportacaoView = lazy(() => import('./features/importacao/ImportacaoView').then((m) => ({ default: m.ImportacaoView })));
+const AprovacoesView = lazy(() => import('./features/aprovacoes/AprovacoesView').then((m) => ({ default: m.AprovacoesView })));
 const MapaView = lazy(() => import('./features/mapa/MapaView').then((m) => ({ default: m.MapaView })));
 const RelatoriosView = lazy(() => import('./features/relatorios/RelatoriosView').then((m) => ({ default: m.RelatoriosView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
@@ -513,6 +514,7 @@ function App() {
     configuracoes: <ConfiguracoesView />,
     logs: <LogsView />,
     importacao: <ImportacaoView profile={profile} />,
+    aprovacoes: <AprovacoesView profile={profile} />,
     relatorios: (
       <RelatoriosView
         validade={dataState.validade}

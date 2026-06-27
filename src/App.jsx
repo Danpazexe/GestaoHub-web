@@ -17,6 +17,9 @@ import { parseNfeXml } from './lib/nfeXml';
 // internos do InicioView (recharts continua em lazy no segmento Análise).
 const InicioView = lazy(() => import('./features/inicio/InicioView').then((m) => ({ default: m.InicioView })));
 const PendenciasView = lazy(() => import('./features/pendencias/PendenciasView').then((m) => ({ default: m.PendenciasView })));
+const FornecedoresView = lazy(() => import('./features/fornecedores/FornecedoresView').then((m) => ({ default: m.FornecedoresView })));
+const QualidadeView = lazy(() => import('./features/qualidade/QualidadeView').then((m) => ({ default: m.QualidadeView })));
+const RankingView = lazy(() => import('./features/ranking/RankingView').then((m) => ({ default: m.RankingView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
 const TratativasView = lazy(() => import('./features/tratativas/TratativasView').then((m) => ({ default: m.TratativasView })));
 const RecebimentoView = lazy(() => import('./features/recebimento/RecebimentoView').then((m) => ({ default: m.RecebimentoView })));
@@ -465,6 +468,22 @@ function App() {
     avarias: <AvariasView avarias={dataState.avarias} onRefresh={loadDashboard} />,
     validade: <ValidadeView validade={dataState.validade} onRefresh={loadDashboard} />,
     events: <EventsView events={dataState.events} purchaseOrderActions={dataState.purchaseOrderActions} />,
+    fornecedores: (
+      <FornecedoresView
+        purchaseOrders={dataState.purchaseOrders}
+        conferenciaDivergencias={dataState.conferenciaDivergencias}
+        avarias={dataState.avarias}
+      />
+    ),
+    qualidade: <QualidadeView validade={dataState.validade} />,
+    ranking: (
+      <RankingView
+        validade={dataState.validade}
+        avarias={dataState.avarias}
+        conferenciaDivergencias={dataState.conferenciaDivergencias}
+        tratativas={dataState.tratativas}
+      />
+    ),
   };
 
   if (loading) {

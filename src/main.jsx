@@ -3,7 +3,15 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { initGlobalLogger } from './lib/logger';
-import './styles.css';
+// CSS dividido por área (briefing §28). A ORDEM importa para a cascata: tokens →
+// base → layout → componentes/features → responsivo → módulos.
+import './styles/tokens.css';
+import './styles/base.css';
+import './styles/layout.css';
+import './styles/features.css';
+import './styles/components.css';
+import './styles/responsive.css';
+import './styles/modules.css';
 
 // Captura erros globais para a tela de Logs técnicos (briefing §34.17).
 initGlobalLogger();

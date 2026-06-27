@@ -749,7 +749,7 @@ button { cursor: pointer; }
 @media (max-width: 900px) { .mapa-grid { grid-template-columns: 1fr; } }
 
 /* ─── controle de validade visual (briefing §13) ──────────── */
-.validade-summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.validade-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .validade-summary-card { display: grid; gap: 2px; padding: 14px 12px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); cursor: pointer; text-align: left; transition: border-color var(--dur-2), transform var(--dur-1); }
 .validade-summary-card:hover { border-color: var(--accent-2); transform: translateY(-1px); }
 .validade-summary-value { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--ink); }

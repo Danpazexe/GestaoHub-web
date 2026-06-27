@@ -3,7 +3,7 @@
 // campo de data. Relatórios "snapshot" representam estado atual (sem período).
 
 import { formatDateTime } from './format';
-import { classifyValidade, readImage, isOpenValidade } from './validadeFaixas';
+import { classifyValidade, readImage, hasImageField, isOpenValidade } from './validadeFaixas';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -23,7 +23,7 @@ export const periodRange = (key, { now = Date.now(), customStart, customEnd } = 
   const todayStart = startOfDay(now);
   switch (key) {
     case 'hoje': return { start: todayStart, end: now };
-    case 'ontem': return { start: todayStart - DAY, end: todayStart };
+    case 'ontem': return { start: todayStart - DAY, end: todayStart - 1 };
     case '7d': return { start: now - 7 * DAY, end: now };
     case '30d': return { start: now - 30 * DAY, end: now };
     case 'mes': { const d = new Date(now); return { start: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), end: now }; }
@@ -87,7 +87,8 @@ export const REPORTS = [
   {
     category: 'Validade', key: 'val_sem_imagem', label: 'Produtos sem imagem', snapshot: true,
     columns: [{ key: 'codprod', label: 'Código' }, { key: 'descricao', label: 'Descrição' }, { key: 'lote', label: 'Lote' }, { key: 'quantidade', label: 'Qtd' }],
-    rows: (d) => (d.validade || []).filter((r) => isOpenValidade(r) && !readImage(r)),
+    // Só faz sentido quando o schema publica imagem; senão evita reportar 100% como sem imagem.
+    rows: (d) => (hasImageField(d.validade || []) ? (d.validade || []).filter((r) => isOpenValidade(r) && !readImage(r)) : []),
   },
   // ── Recebimento ──
   {

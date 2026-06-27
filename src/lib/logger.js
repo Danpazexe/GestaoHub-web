@@ -6,7 +6,10 @@ const STORAGE_KEY = 'gh-logs-v1';
 const MAX = 100;
 
 const read = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
 };
 const write = (logs) => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(logs.slice(0, MAX))); } catch { /* ignore */ }

@@ -13,7 +13,7 @@ import { toast } from '../../lib/toast';
 import { exportCsv } from '../../lib/csv';
 import { hasReason, VALIDATION_MESSAGES } from '../../lib/validations';
 import { formatDateTime, truncate } from '../../lib/format';
-import { classifyValidade, readImage, hasImageField, isOpenValidade } from '../../lib/validadeFaixas';
+import { classifyValidade, readImage, hasImageField, isOpenValidade, loadFaixasConfig } from '../../lib/validadeFaixas';
 
 // Vocabulário canônico de tratativa de validade — MESMOS códigos do app (EN) que o
 // CHECK do banco (ck_validade_treatment_type) aceita: sold/exchanged/returned/expired.
@@ -60,26 +60,29 @@ export const ValidadeView = ({ validade, onRefresh }) => {
 
   const rows = validade || [];
   const imageTrackable = useMemo(() => hasImageField(rows), [rows]);
+  // Faixas configuráveis carregadas uma vez (evita reler localStorage por linha).
+  const faixasConfig = useMemo(() => loadFaixasConfig(), []);
 
-  // Cards de resumo (§13.3) — todos sobre itens em aberto, exceto "Tratados".
+  // Cards de resumo (§13.3) alinhados 1:1 às faixas reais (respeitam a config).
   const summary = useMemo(() => {
     const open = rows.filter(isOpenValidade);
-    const count = (key) => open.filter((r) => classifyValidade(r.diasrestantes).key === key).length;
+    const count = (key) => open.filter((r) => classifyValidade(r.diasrestantes, faixasConfig).key === key).length;
     return {
       vencidos: count('vencido'),
       hoje: count('hoje'),
-      ate7: count('critico'),
-      ate30: open.filter((r) => { const d = Number(r.diasrestantes); return d > 7 && d <= 30; }).length,
+      critico: count('critico'),
+      atencao: count('atencao'),
+      monitorar: count('monitorar'),
       tratados: rows.filter((r) => !isOpenValidade(r)).length,
       semImagem: imageTrackable ? open.filter((r) => !readImage(r)).length : null,
     };
-  }, [rows, imageTrackable]);
+  }, [rows, imageTrackable, faixasConfig]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     const list = rows.filter((row) => {
       if (statusValue && row.status !== statusValue) return false;
-      if (faixaValue && classifyValidade(row.diasrestantes).key !== faixaValue) return false;
+      if (faixaValue && classifyValidade(row.diasrestantes, faixasConfig).key !== faixaValue) return false;
       if (semImagem && readImage(row)) return false;
       if (term) {
         const hay = `${row.codprod || ''} ${row.descricao || ''} ${row.lote || ''} ${row.ean || ''}`.toLowerCase();
@@ -87,14 +90,16 @@ export const ValidadeView = ({ validade, onRefresh }) => {
       }
       return true;
     });
+    // Comparadores NaN-safe: valores não numéricos vão para o fim.
+    const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : Infinity; };
     const sorters = {
-      validade: (a, b) => Number(a.diasrestantes) - Number(b.diasrestantes),
-      validade_desc: (a, b) => Number(b.diasrestantes) - Number(a.diasrestantes),
-      quantidade: (a, b) => Number(b.quantidade) - Number(a.quantidade),
+      validade: (a, b) => num(a.diasrestantes) - num(b.diasrestantes),
+      validade_desc: (a, b) => num(b.diasrestantes) - num(a.diasrestantes),
+      quantidade: (a, b) => num(b.quantidade) - num(a.quantidade),
       nome: (a, b) => String(a.descricao || '').localeCompare(String(b.descricao || ''), 'pt-BR'),
     };
     return [...list].sort(sorters[order] || sorters.validade);
-  }, [rows, statusValue, faixaValue, semImagem, search, order]);
+  }, [rows, statusValue, faixaValue, semImagem, search, order, faixasConfig]);
 
   const treatmentHistory = useMemo(
     () => rows.filter((row) => row.treatment_date)
@@ -155,11 +160,13 @@ export const ValidadeView = ({ validade, onRefresh }) => {
     loading: false,
   });
 
+  // Cada card mapeia para uma faixa real (filtro casa 1:1), evitando key vazia.
   const summaryCards = [
     { key: 'vencido', label: 'Vencidos', value: summary.vencidos, tone: 'danger' },
     { key: 'hoje', label: 'Vence hoje', value: summary.hoje, tone: 'danger' },
-    { key: 'critico', label: 'Até 7 dias', value: summary.ate7, tone: 'warning' },
-    { key: '', label: 'Até 30 dias', value: summary.ate30, tone: 'monitor' },
+    { key: 'critico', label: `Crítico (≤${faixasConfig.criticoDias}d)`, value: summary.critico, tone: 'danger' },
+    { key: 'atencao', label: `Atenção (≤${faixasConfig.atencaoDias}d)`, value: summary.atencao, tone: 'warning' },
+    { key: 'monitorar', label: `Monitorar (≤${faixasConfig.monitorarDias}d)`, value: summary.monitorar, tone: 'monitor' },
     { key: 'treated', label: 'Tratados', value: summary.tratados, tone: 'success', isStatus: true },
     ...(imageTrackable ? [{ key: 'semimg', label: 'Sem imagem', value: summary.semImagem, tone: 'info', isImage: true }] : []),
   ];
@@ -247,7 +254,7 @@ export const ValidadeView = ({ validade, onRefresh }) => {
           filtered.length ? (
             <div className="validade-grid">
               {filtered.slice(0, 60).map((row) => {
-                const faixa = classifyValidade(row.diasrestantes);
+                const faixa = classifyValidade(row.diasrestantes, faixasConfig);
                 const img = readImage(row);
                 return (
                   <article key={row.id} className={`validade-card sev-stripe-${faixa.tone}`}>
@@ -283,14 +290,14 @@ export const ValidadeView = ({ validade, onRefresh }) => {
             rows={filtered}
             pageSize={20}
             sortable
-            rowClassName={(row) => `sev-stripe-${classifyValidade(row.diasrestantes).tone}`}
+            rowClassName={(row) => `sev-stripe-${classifyValidade(row.diasrestantes, faixasConfig).tone}`}
             columns={[
               { key: 'user_name', label: 'Operador', render: (row) => row.user_name || row.user_email || '-' },
               { key: 'codprod', label: 'Código' },
               { key: 'descricao', label: 'Descrição', render: (row) => truncate(row.descricao, 52) },
               { key: 'lote', label: 'Lote' },
               { key: 'quantidade', label: 'Qtd' },
-              { key: 'diasrestantes', label: 'Faixa', render: (row) => { const f = classifyValidade(row.diasrestantes); return <SeverityBadge severity={f.tone === 'danger' ? 'critico' : f.tone === 'warning' ? 'atencao' : f.tone === 'monitor' ? 'monitorar' : 'resolvido'} label={f.label} />; } },
+              { key: 'diasrestantes', label: 'Faixa', render: (row) => { const f = classifyValidade(row.diasrestantes, faixasConfig); return <SeverityBadge severity={f.tone === 'danger' ? 'critico' : f.tone === 'warning' ? 'atencao' : f.tone === 'monitor' ? 'monitorar' : 'resolvido'} label={f.label} />; } },
               { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
               { key: 'treatment_type', label: 'Tratativa', render: (row) => treatmentLabel(row.treatment_type) },
               { key: 'updated_at', label: 'Atualização', render: (row) => formatDateTime(row.updated_at) },

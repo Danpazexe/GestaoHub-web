@@ -5,40 +5,47 @@
 
 import { textToList, listToText } from './config';
 
-// ── Parser ───────────────────────────────────────────────────────────────────
-const detectDelimiter = (headerLine) => {
-  const semi = (headerLine.match(/;/g) || []).length;
-  const comma = (headerLine.match(/,/g) || []).length;
-  return semi >= comma ? ';' : ',';
-};
-
-const parseLine = (line, delimiter) => {
-  const out = [];
+// ── Parser (RFC 4180-aware) ──────────────────────────────────────────────────
+// Tokeniza o texto inteiro em registros respeitando aspas: delimitador e quebra
+// de linha dentro de aspas ("...") NÃO separam — só fora de aspas.
+const tokenize = (text, delimiter) => {
+  const records = [];
+  let row = [];
   let cur = '';
   let inQuotes = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') { cur += '"'; i += 1; }
-      else inQuotes = !inQuotes;
-    } else if (ch === delimiter && !inQuotes) {
-      out.push(cur); cur = '';
-    } else {
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cur += '"'; i += 1; }
+        else inQuotes = false;
+      } else { cur += ch; }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === delimiter) {
+      row.push(cur.trim()); cur = '';
+    } else if (ch === '\n') {
+      row.push(cur.trim()); records.push(row); row = []; cur = '';
+    } else if (ch !== '\r') {
       cur += ch;
     }
   }
-  out.push(cur);
-  return out.map((c) => c.trim());
+  row.push(cur.trim());
+  records.push(row);
+  // Descarta linhas totalmente vazias.
+  return records.filter((r) => !(r.length === 1 && r[0] === ''));
 };
 
 export const parseCsv = (text) => {
   const clean = String(text || '').replace(/^﻿/, '');
-  const lines = clean.split(/\r?\n/).filter((l) => l.trim().length);
-  if (!lines.length) return { headers: [], rows: [] };
-  const delimiter = detectDelimiter(lines[0]);
-  const headers = parseLine(lines[0], delimiter).map((h) => h.toLowerCase());
-  const rows = lines.slice(1).map((line) => {
-    const cells = parseLine(line, delimiter);
+  if (!clean.trim()) return { headers: [], rows: [] };
+  // Detecta o delimitador pela contagem de colunas do header (fora de aspas).
+  const semiRecs = tokenize(clean, ';');
+  const commaRecs = tokenize(clean, ',');
+  const recs = (semiRecs[0]?.length || 0) >= (commaRecs[0]?.length || 0) ? semiRecs : commaRecs;
+  if (!recs.length) return { headers: [], rows: [] };
+  const headers = recs[0].map((h) => h.toLowerCase());
+  const rows = recs.slice(1).map((cells) => {
     const obj = {};
     headers.forEach((h, idx) => { obj[h] = cells[idx] ?? ''; });
     return obj;

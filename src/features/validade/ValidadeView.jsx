@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -13,7 +13,7 @@ import { toast } from '../../lib/toast';
 import { exportCsv } from '../../lib/csv';
 import { hasReason, VALIDATION_MESSAGES } from '../../lib/validations';
 import { formatDateTime, truncate } from '../../lib/format';
-import { classifyValidade, readImage, hasImageField, isOpenValidade, loadFaixasConfig } from '../../lib/validadeFaixas';
+import { classifyValidade, readImage, hasImageField, isOpenValidade, isDirectImageUrl, loadFaixasConfig } from '../../lib/validadeFaixas';
 
 // Vocabulário canônico de tratativa de validade — MESMOS códigos do app (EN) que o
 // CHECK do banco (ck_validade_treatment_type) aceita: sold/exchanged/returned/expired.
@@ -62,6 +62,27 @@ export const ValidadeView = ({ validade, onRefresh }) => {
   const imageTrackable = useMemo(() => hasImageField(rows), [rows]);
   // Faixas configuráveis carregadas uma vez (evita reler localStorage por linha).
   const faixasConfig = useMemo(() => loadFaixasConfig(), []);
+
+  // Resolve URLs assinadas para os caminhos do bucket privado product-images.
+  const [imageUrls, setImageUrls] = useState({});
+  useEffect(() => {
+    const paths = rows
+      .map((r) => readImage(r))
+      .filter((value) => value && !isDirectImageUrl(value));
+    if (!paths.length) { setImageUrls({}); return undefined; }
+    let active = true;
+    adminApi.createSignedProductImageUrls(paths)
+      .then((map) => { if (active) setImageUrls(map); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [rows]);
+
+  // URL exibível: URL direta passa reto; caminho de storage usa a versão assinada.
+  const resolveImg = (row) => {
+    const raw = readImage(row);
+    if (!raw) return null;
+    return isDirectImageUrl(raw) ? raw : (imageUrls[raw] || null);
+  };
 
   // Cards de resumo (§13.3) alinhados 1:1 às faixas reais (respeitam a config).
   const summary = useMemo(() => {
@@ -255,7 +276,7 @@ export const ValidadeView = ({ validade, onRefresh }) => {
             <div className="validade-grid">
               {filtered.slice(0, 60).map((row) => {
                 const faixa = classifyValidade(row.diasrestantes, faixasConfig);
-                const img = readImage(row);
+                const img = resolveImg(row);
                 return (
                   <article key={row.id} className={`validade-card sev-stripe-${faixa.tone}`}>
                     <div className="validade-card-media">

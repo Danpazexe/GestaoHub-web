@@ -28,23 +28,23 @@ export const LoginForm = ({ onSuccess, disabled, globalError }) => {
           <div className="login-logo-mark" aria-hidden="true">GH</div>
           <div className="login-logo-text">
             <span className="login-logo-name">GestãoHub</span>
-            <span className="login-logo-sub">Admin Control</span>
+            <span className="login-logo-sub">Supervisão</span>
           </div>
         </div>
-        <span className="eyebrow">Painel administrativo</span>
-        <h1>Operação, rastreabilidade e controle central.</h1>
-        <p>Visão consolidada de todos os módulos do app móvel, em tempo real via Supabase.</p>
+        <span className="eyebrow">Plataforma de supervisão</span>
+        <h1>Sua operação sob controle, em tempo real.</h1>
+        <p>Acompanhe validade, conferências, recebimento e equipe — tudo num só lugar.</p>
         <ul className="login-points">
-          <li>Usuários online e sessões ativas</li>
-          <li>Conferências, tratativas e avarias</li>
-          <li>Controle de validade e eventos de auditoria</li>
+          <li>Operação ao vivo e equipe conectada</li>
+          <li>Conferências, recebimento e tratativas</li>
+          <li>Validade, pendências e auditoria</li>
         </ul>
       </div>
 
       <div className="login-right">
         <form className="login-card" onSubmit={handleSubmit} noValidate>
-          <h2>Acesso restrito</h2>
-          <p>Entre com um usuário promovido em <code>admin_users</code> no Supabase.</p>
+          <h2>Entrar</h2>
+          <p>Use seu e-mail e senha de acesso para continuar.</p>
 
           <label className="field">
             <span>E-mail</span>

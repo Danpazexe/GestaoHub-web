@@ -29,23 +29,33 @@ export const InicioView = ({
 }) => {
   const [segment, setSegment] = useState('realtime');
 
+  const now = new Date();
+  const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite';
+  const dateLabel = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+
   return (
     <>
-      <div className="segmented" role="tablist" aria-label="Modo do painel">
-        {SEGMENTS.map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            aria-selected={segment === item.key}
-            className={segment === item.key ? 'segmented-btn active' : 'segmented-btn'}
-            onClick={() => setSegment(item.key)}
-          >
-            <AppIcon name={item.icon} size={15} />
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <header className="page-head">
+        <div className="page-head-copy">
+          <h2 className="page-head-title">{greeting}</h2>
+          <span className="page-head-sub">{dateLabel} · operação ao vivo</span>
+        </div>
+        <div className="segmented" role="tablist" aria-label="Modo do painel">
+          {SEGMENTS.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={segment === item.key}
+              className={segment === item.key ? 'segmented-btn active' : 'segmented-btn'}
+              onClick={() => setSegment(item.key)}
+            >
+              <AppIcon name={item.icon} size={15} />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </header>
 
       {segment === 'realtime' ? (
         <MonitorView

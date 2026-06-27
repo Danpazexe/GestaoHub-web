@@ -1325,4 +1325,31 @@ export const adminApi = {
 
     return attachActor(data || []);
   },
+
+  // Gera URLs assinadas (bucket privado product-images) para os caminhos das
+  // imagens de validade. Retorna um mapa { image_path: signedUrl }. Degrada para
+  // {} se a política de leitura admin do storage ainda não foi aplicada
+  // (docs/migrations/0003) — a UI mostra o placeholder nesse caso.
+  async createSignedProductImageUrls(paths, expiresIn = 3600) {
+    const clean = [...new Set((paths || []).filter(Boolean))];
+    if (!clean.length) return {};
+    try {
+      const { data, error } = await supabase
+        .storage
+        .from('product-images')
+        .createSignedUrls(clean, expiresIn);
+      if (error) {
+        console.warn('[adminApi] Sem acesso de leitura ao product-images (rode migrations/0003):', error.message);
+        return {};
+      }
+      const map = {};
+      (data || []).forEach((item) => {
+        if (item?.signedUrl && !item.error) map[item.path] = item.signedUrl;
+      });
+      return map;
+    } catch (storageError) {
+      console.warn('[adminApi] Falha ao assinar imagens de produto:', storageError?.message);
+      return {};
+    }
+  },
 };

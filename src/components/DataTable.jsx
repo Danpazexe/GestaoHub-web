@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { SearchInput } from './SearchInput';
+import { EmptyState } from './EmptyState';
 
 const normalizeValue = (value) => String(value ?? '').toLowerCase().trim();
 
@@ -74,7 +75,7 @@ export const DataTable = ({
   };
 
   if (!rows?.length) {
-    return <div className="empty-state" role="status">{emptyMessage}</div>;
+    return <EmptyState title={emptyMessage} />;
   }
 
   return (
@@ -93,16 +94,20 @@ export const DataTable = ({
         <table className="data-table">
           <thead>
             <tr>
-              {columns.map((col) => (
-                <th
-                  key={col.key}
-                  scope="col"
-                  className={sortable ? 'is-sortable' : ''}
-                  onClick={() => toggleSort(col.key)}
-                >
-                  {col.label}
-                </th>
-              ))}
+              {columns.map((col) => {
+                const sorted = sortable && sortState?.key === col.key;
+                return (
+                  <th
+                    key={col.key}
+                    scope="col"
+                    className={[sortable ? 'is-sortable' : '', sorted ? 'is-sorted' : ''].filter(Boolean).join(' ')}
+                    onClick={() => toggleSort(col.key)}
+                  >
+                    {col.label}
+                    {sorted ? <span className="th-caret" aria-hidden="true">{sortState.direction === 'asc' ? '▲' : '▼'}</span> : null}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>

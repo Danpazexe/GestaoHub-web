@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { AppIcon } from '../../components/AppIcon';
+import { StatCard } from '../../components/StatCard';
 import { toast } from '../../lib/toast';
 import { buildModuleDashboards, buildComparativo, computeMetaProgress } from '../../lib/dashboards';
 import { loadMetas, saveMetas } from '../../lib/metas';
@@ -74,16 +75,19 @@ export const IndicadoresView = (props) => {
         subtitle="Esta semana vs. semana anterior"
         kicker="Tendência"
       >
-        <div className="comparativo-grid">
+        <div className="stat-grid">
           {comparativo.map((item) => (
-            <article key={item.label} className="comparativo-card">
-              <span className="comparativo-label">{item.label}</span>
-              <div className="comparativo-values">
-                <strong className="comparativo-current">{item.current}</strong>
-                <span className="comparativo-prev">ant. {item.previous}</span>
-              </div>
-              <DeltaPill item={item} />
-            </article>
+            <StatCard
+              key={item.label}
+              hero
+              icon={item.icon}
+              tone={item.tone}
+              label={item.label}
+              value={item.current}
+              trend={<DeltaPill item={item} />}
+              series={item.series}
+              hint={`semana anterior: ${item.previous}`}
+            />
           ))}
         </div>
       </PanelSection>

@@ -193,37 +193,49 @@ select
   updated_at   as atualizado_em
 from public.admin_conferencia_divergencias_view;
 
-create or replace view public.conferencia_fila_entrada with (security_invoker = true) as
+-- DROP + CREATE (não create-or-replace): estas trazem campos que a tela usa e
+-- numa ordem própria; o create-or-replace só permite apendar no fim.
+drop view if exists public.conferencia_fila_entrada;
+create view public.conferencia_fila_entrada with (security_invoker = true) as
 select
-  id                 as id,
-  invoice_number     as numero_nf,
-  supplier_name      as nome_fornecedor,
-  item_count         as qtd_itens,
-  total_quantity     as quantidade_total,
-  status             as situacao,
-  assigned_user_id   as responsavel_id,
-  assigned_user_name as responsavel_nome,
-  started_at         as iniciada_em,
-  finished_at        as finalizada_em,
-  created_at         as criado_em
+  id                      as id,
+  invoice_number          as numero_nf,
+  supplier_name           as nome_fornecedor,
+  item_count              as qtd_itens,
+  total_quantity          as quantidade_total,
+  checked_quantity        as quantidade_conferida,
+  status                  as situacao,
+  assigned_user_id        as responsavel_id,
+  assigned_user_name      as responsavel_nome,
+  started_at              as iniciada_em,
+  finished_at             as finalizada_em,
+  conference_result       as resultado_conferencia,
+  divergence_count        as qtd_divergencias,
+  finalized_with_pendency as finalizada_com_pendencia,
+  created_at              as criado_em
 from public.admin_conferencia_bonus_queue_view;
 
-create or replace view public.conferencia_fila_saida with (security_invoker = true) as
+drop view if exists public.conferencia_fila_saida;
+create view public.conferencia_fila_saida with (security_invoker = true) as
 select
-  id                 as id,
-  order_code         as codigo_pedido,
-  customer_name      as nome_cliente,
-  customer_code      as codigo_cliente,
-  route_code         as codigo_rota,
-  carga_code         as codigo_carga,
-  item_count         as qtd_itens,
-  total_quantity     as quantidade_total,
-  status             as situacao,
-  assigned_user_id   as responsavel_id,
-  assigned_user_name as responsavel_nome,
-  started_at         as iniciada_em,
-  finished_at        as finalizada_em,
-  created_at         as criado_em
+  id                      as id,
+  order_code              as codigo_pedido,
+  customer_name           as nome_cliente,
+  customer_code           as codigo_cliente,
+  route_code              as codigo_rota,
+  carga_code              as codigo_carga,
+  item_count              as qtd_itens,
+  total_quantity          as quantidade_total,
+  checked_quantity        as quantidade_conferida,
+  status                  as situacao,
+  assigned_user_id        as responsavel_id,
+  assigned_user_name      as responsavel_nome,
+  started_at              as iniciada_em,
+  finished_at             as finalizada_em,
+  conference_result       as resultado_conferencia,
+  divergence_count        as qtd_divergencias,
+  finalized_with_pendency as finalizada_com_pendencia,
+  created_at              as criado_em
 from public.admin_conferencia_saida_bonus_queue_view;
 
 -- ── Sistema (resumo) ─────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { Drawer } from '../../components/Drawer';
 import { SelectFilter } from '../../components/SelectFilter';
 import { SearchInput } from '../../components/SearchInput';
 import { Timeline } from '../../components/Timeline';
+import { RowActions } from '../../components/RowActions';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useTableFilter } from '../../hooks/useTableFilter';
 import { adminApi } from '../../services/adminApi';
@@ -236,14 +237,10 @@ export const UsersView = ({ activeUsers, onRefresh }) => {
               key: 'actions',
               label: 'Ações',
               render: (row) => (
-                <div className="table-actions-row">
-                  <button type="button" className="table-action-button" onClick={() => openProfile(row)} title="Ver perfil completo">
-                    Perfil
-                  </button>
-                  <button type="button" className="table-action-button is-danger" onClick={() => handleForceLogout(row)} title="Encerrar sessão no app">
-                    Logout
-                  </button>
-                </div>
+                <RowActions actions={[
+                  { label: 'Ver perfil completo', onClick: () => openProfile(row) },
+                  { label: 'Encerrar sessão no app', onClick: () => handleForceLogout(row), danger: true },
+                ]} />
               ),
             },
           ]}

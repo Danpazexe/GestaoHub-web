@@ -91,22 +91,37 @@ export const buildModuleDashboards = (data = {}) => {
   ];
 };
 
+// Série diária (contagem por dia) dos últimos `days` dias — alimenta sparklines.
+const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+export const buildDailySeries = (rows, getTime, { now = Date.now(), days = 7 } = {}) => {
+  const start = startOfDay(now) - (days - 1) * DAY;
+  const buckets = new Array(days).fill(0);
+  for (const row of rows || []) {
+    const t = ms(getTime(row));
+    if (!t) continue;
+    const idx = Math.floor((t - start) / DAY);
+    if (idx >= 0 && idx < days) buckets[idx] += 1;
+  }
+  return buckets;
+};
+
 // ── Comparativo por período (briefing §24) ───────────────────────────────────
 export const buildComparativo = (data = {}, { now = Date.now() } = {}) => {
   const curStart = now - 7 * DAY;
   const prevStart = now - 14 * DAY;
-  const make = (label, rows, getTime, betterWhenLower = false) => {
+  const make = (label, icon, tone, rows, getTime, betterWhenLower = false) => {
     const current = countWindow(rows, getTime, curStart, now);
     const previous = countWindow(rows, getTime, prevStart, curStart);
     const deltaPct = previous > 0 ? Math.round(((current - previous) / previous) * 100) : (current > 0 ? 100 : 0);
-    return { label, current, previous, deltaPct, betterWhenLower };
+    const series = buildDailySeries(rows, getTime, { now, days: 7 });
+    return { label, icon, tone, current, previous, deltaPct, betterWhenLower, series };
   };
 
   return [
-    make('Atividade operacional', data.events, (r) => r.created_at),
-    make('Divergências registradas', data.conferenciaDivergencias, (r) => r.created_at, true),
-    make('Avarias movimentadas', data.avarias, (r) => r.item_updated_at, true),
-    make('Conferências finalizadas', [...(data.conferenciaBonusQueue || []), ...(data.conferenciaSaidaBonusQueue || [])], (r) => r.finished_at),
+    make('Atividade operacional', 'events', 'info', data.events, (r) => r.created_at),
+    make('Divergências registradas', 'conferencia', 'danger', data.conferenciaDivergencias, (r) => r.created_at, true),
+    make('Avarias movimentadas', 'avarias', 'warning', data.avarias, (r) => r.item_updated_at, true),
+    make('Conferências finalizadas', 'validade', 'success', [...(data.conferenciaBonusQueue || []), ...(data.conferenciaSaidaBonusQueue || [])], (r) => r.finished_at),
   ];
 };
 

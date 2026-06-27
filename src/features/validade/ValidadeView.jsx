@@ -3,6 +3,8 @@ import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { SeverityBadge } from '../../components/SeverityBadge';
+import { FilterChips } from '../../components/FilterChips';
+import { RowActions } from '../../components/RowActions';
 import { Drawer } from '../../components/Drawer';
 import { SelectFilter } from '../../components/SelectFilter';
 import { SearchInput } from '../../components/SearchInput';
@@ -271,6 +273,16 @@ export const ValidadeView = ({ validade, onRefresh }) => {
           </div>
         </div>
 
+        <FilterChips
+          chips={[
+            faixaValue && { key: 'faixa', label: `Faixa: ${FAIXA_OPTIONS.find((o) => o.value === faixaValue)?.label || faixaValue}`, onRemove: () => setFaixaValue('') },
+            statusValue && { key: 'status', label: `Status: ${statusValue}`, onRemove: () => setStatusValue('') },
+            semImagem && { key: 'semimg', label: 'Sem imagem', onRemove: () => setSemImagem(false) },
+            search && { key: 'busca', label: `Busca: "${search}"`, onRemove: () => setSearch('') },
+          ]}
+          onClear={() => { setFaixaValue(''); setStatusValue(''); setSemImagem(false); setSearch(''); }}
+        />
+
         {viewMode === 'cards' ? (
           filtered.length ? (
             <div className="validade-grid">
@@ -325,10 +337,10 @@ export const ValidadeView = ({ validade, onRefresh }) => {
               {
                 key: 'actions', label: 'Ações',
                 render: (row) => (
-                  <div className="table-actions-row">
-                    <button type="button" className="table-action-button" onClick={() => openTreatment(row)}>Tratar</button>
-                    <button type="button" className="table-action-button" onClick={() => resolveItem(row)}>Resolver</button>
-                  </div>
+                  <RowActions actions={[
+                    { label: 'Tratar', onClick: () => openTreatment(row) },
+                    { label: 'Marcar como resolvido', onClick: () => resolveItem(row) },
+                  ]} />
                 ),
               },
             ]}

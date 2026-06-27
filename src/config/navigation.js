@@ -28,6 +28,7 @@ export const navGroups = [
       { key: 'fornecedores', label: 'Fornecedores', shortLabel: 'FO', icon: 'fornecedores' },
       { key: 'qualidade', label: 'Qualidade de cadastro', shortLabel: 'QC', icon: 'qualidade' },
       { key: 'ranking', label: 'Ranking de produtos', shortLabel: 'RK', icon: 'ranking' },
+      { key: 'mapa', label: 'Mapa operacional', shortLabel: 'MP', icon: 'mapa' },
     ],
   },
   {

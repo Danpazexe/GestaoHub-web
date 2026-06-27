@@ -733,6 +733,20 @@ button { cursor: pointer; }
   .export-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .checklist { grid-template-columns: 1fr; }
 }
+
+/* ─── mapa operacional (briefing §2/§3) ───────────────────── */
+.mapa-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.mapa-card { padding: 16px 18px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-sm); }
+.mapa-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.mapa-card-head h3 { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--ink); }
+.mapa-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.mapa-lines li { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--ink-2); }
+.mapa-lines li span { color: var(--muted); }
+.mapa-lines li strong { font-family: var(--font-display); font-size: 15px; color: var(--ink); }
+.mapa-lines li.mapa-ok { color: var(--success-text); font-weight: 600; }
+.perm-table code, .feedback code { font-size: 11px; background: var(--neutral-soft); padding: 1px 5px; border-radius: 4px; }
+
+@media (max-width: 900px) { .mapa-grid { grid-template-columns: 1fr; } }
 .topbar-refresh-note {
   font-size: 11px; color: var(--muted); font-weight: 500;
   padding: 8px 13px; border-radius: 999px;

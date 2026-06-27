@@ -23,6 +23,7 @@ const RankingView = lazy(() => import('./features/ranking/RankingView').then((m)
 const IndicadoresView = lazy(() => import('./features/indicadores/IndicadoresView').then((m) => ({ default: m.IndicadoresView })));
 const TvView = lazy(() => import('./features/tv/TvView').then((m) => ({ default: m.TvView })));
 const AdminCenterView = lazy(() => import('./features/admin/AdminCenterView').then((m) => ({ default: m.AdminCenterView })));
+const MapaView = lazy(() => import('./features/mapa/MapaView').then((m) => ({ default: m.MapaView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
 const TratativasView = lazy(() => import('./features/tratativas/TratativasView').then((m) => ({ default: m.TratativasView })));
 const RecebimentoView = lazy(() => import('./features/recebimento/RecebimentoView').then((m) => ({ default: m.RecebimentoView })));
@@ -510,6 +511,17 @@ function App() {
         avarias={dataState.avarias}
         conferenciaDivergencias={dataState.conferenciaDivergencias}
         tratativas={dataState.tratativas}
+      />
+    ),
+    mapa: (
+      <MapaView
+        validade={dataState.validade}
+        conferenciaDivergencias={dataState.conferenciaDivergencias}
+        avarias={dataState.avarias}
+        tratativas={dataState.tratativas}
+        conferenciaBonusQueue={dataState.conferenciaBonusQueue}
+        conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
+        purchaseOrders={dataState.purchaseOrders}
       />
     ),
   };

@@ -1,0 +1,160 @@
+
+/* ─── tokens ──────────────────────────────────────────────── */
+:root {
+  /* fontes — Inter (corpo) + Inter Tight (display); nomes de token preservados */
+  --font-display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, -apple-system, sans-serif;
+
+  /* tinta / texto */
+  --ink:    #1e2433;
+  --ink-2:  #334155;
+  --ink-3:  #475569;
+  --muted:  #667085;
+  --muted-2:#94a3b8;
+
+  /* superfícies */
+  --bg:        #f7f8fa;
+  --surface:   #ffffff;
+  --surface-2: #f4f6fb;
+
+  /* marca — ember/âmbar/slate (identidade do app) */
+  --accent:    #b45309;   /* âmbar profundo — ÚNICO âmbar como TEXTO no claro (AA ~5:1) */
+  --accent-2:  #fc964e;   /* ember — só FILL / realce */
+  --accent-3:  #ffe6d1;   /* tint ember — halo / hover */
+  --primary:   #334155;   /* slate — estrutura / sidebar */
+
+  /* semânticas (vivas) */
+  --success:   #10b981;
+  --danger:    #ef4444;
+  --warning:   #f59e0b;
+  --info:      #0ea5e9;
+  --monitor:   #eab308;   /* amarelo — gravidade "Monitorar" (briefing §15) */
+
+  /* soft-tint para badges/feedback/linhas (tokenizado, não hardcoded) */
+  --success-soft: rgba(16, 185, 129, 0.12);  --success-text: #047857;
+  --warning-soft: rgba(245, 158, 11, 0.14);  --warning-text: #b45309;
+  --danger-soft:  rgba(239, 68, 68, 0.12);   --danger-text:  #b91c1c;
+  --info-soft:    rgba(14, 165, 233, 0.12);  --info-text:    #0369a1;
+  --monitor-soft: rgba(234, 179, 8, 0.16);   --monitor-text: #a16207;
+  --neutral-soft: rgba(51, 65, 85, 0.07);
+
+  /* tints de linha de tabela (estados) */
+  --row-accent-soft:  rgba(252, 150, 78, 0.06);
+  --row-danger-soft:  rgba(239, 68, 68, 0.05);
+  --row-warning-soft: rgba(245, 158, 11, 0.05);
+  --row-info-soft:    rgba(14, 165, 233, 0.05);
+
+  --line:   rgba(51, 65, 85, 0.12);
+  --line-2: rgba(51, 65, 85, 0.07);
+
+  --shadow-sm: 0 1px 3px rgba(30, 41, 59, 0.06);
+  --shadow-lg: 0 10px 28px rgba(30, 41, 59, 0.08);
+  --shadow-xl: 0 20px 48px rgba(30, 41, 59, 0.10);
+
+  --r-xl: 20px;
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 8px;
+
+  /* escala de espaçamento (base 4px) */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 40px;
+
+  /* escala tipográfica */
+  --fs-xs: 11px; --fs-sm: 12px; --fs-base: 14px;
+  --fs-md: 16px; --fs-lg: 20px; --fs-xl: 24px; --fs-2xl: 32px;
+
+  /* movimento */
+  --dur-1: 120ms; --dur-2: 180ms; --dur-3: 240ms;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --sb-w:     260px;
+  --sb-w-mini: 72px;
+
+  /* gradientes — fonte única de verdade */
+  --grad-cta:        linear-gradient(135deg, #fc964e 0%, #f97316 100%);
+  --grad-cta-shadow: 0 6px 18px rgba(249, 115, 22, 0.30);
+  --grad-brand:      linear-gradient(135deg, #fc964e, #f97316);
+  --grad-sidebar:    linear-gradient(180deg, #1e2433 0%, #283044 52%, #161c2b 100%);
+  --grad-login:      linear-gradient(150deg, #1e2433 0%, #2a3656 55%, #141a28 100%);
+}
+
+/* ─── dark mode (toggle via data-theme no <html>) ─────────── */
+:root[data-theme='dark'] {
+  --ink:    #f3f5ff;
+  --ink-2:  #e2e8f5;
+  --ink-3:  #c2cae0;
+  --muted:  #aab1cf;
+  --muted-2:#7c87a8;
+
+  --bg:        #1f2438;
+  --surface:   #262d47;
+  --surface-2: #212640;
+
+  --accent:    #fdba74;   /* âmbar mais claro p/ AA sobre superfícies escuras */
+  --accent-2:  #fc964e;
+  --accent-3:  rgba(252, 150, 78, 0.22);
+  --primary:   #f3f5ff;
+
+  --success: #34d399;
+  --danger:  #f87171;
+  --warning: #fbbf24;
+  --info:    #38bdf8;
+  --monitor: #facc15;
+
+  /* soft-tint re-tunado para o dark (alpha maior, texto mais claro) */
+  --success-soft: rgba(52, 211, 153, 0.16);  --success-text: #6ee7b7;
+  --warning-soft: rgba(251, 191, 36, 0.18);  --warning-text: #fcd34d;
+  --danger-soft:  rgba(248, 113, 113, 0.18); --danger-text:  #fca5a5;
+  --info-soft:    rgba(56, 189, 248, 0.16);  --info-text:    #7dd3fc;
+  --monitor-soft: rgba(250, 204, 21, 0.18);  --monitor-text: #fde047;
+  --neutral-soft: rgba(255, 255, 255, 0.06);
+
+  --row-accent-soft:  rgba(252, 150, 78, 0.10);
+  --row-danger-soft:  rgba(248, 113, 113, 0.08);
+  --row-warning-soft: rgba(251, 191, 36, 0.08);
+  --row-info-soft:    rgba(56, 189, 248, 0.08);
+
+  --line:   #3a4265;
+  --line-2: rgba(255, 255, 255, 0.05);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 24px 60px rgba(0, 0, 0, 0.55);
+
+  /* gradientes seguem ember; sidebar/login aprofundam levemente */
+  --grad-cta-shadow: 0 6px 18px rgba(249, 115, 22, 0.22);
+  --grad-sidebar:    linear-gradient(180deg, #1a2030 0%, #222a44 52%, #141a28 100%);
+  --grad-login:      linear-gradient(150deg, #141a28 0%, #222a44 55%, #0f1422 100%);
+}
+/* overrides de superfície que não podem ser puro token */
+:root[data-theme='dark'] .topbar { background: rgba(31, 36, 56, 0.72); }
+:root[data-theme='dark'] .mobile-topbar { background: rgba(31, 36, 56, 0.92); }
+:root[data-theme='dark'] .ghost-button { background: rgba(255, 255, 255, 0.05); color: var(--ink-2); }
+:root[data-theme='dark'] .ghost-button:hover { background: rgba(255, 255, 255, 0.10); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--fs-base); line-height: 1.6; color: var(--ink);
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  background:
+    radial-gradient(1100px 560px at 100% -8%, rgba(252, 150, 78, 0.05) 0%, transparent 55%),
+    radial-gradient(900px 520px at -8% 0%, rgba(51, 65, 85, 0.04) 0%, transparent 52%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+
+/* números alinhados (tabular) para métricas e colunas numéricas */
+.metric-value, .monitor-tile-value, .monitor-alert-count,
+.inline-summary-card strong, .conference-metric-value,
+.conf-progress-label, .monitor-prog-label,
+.data-table td.num, .conference-items td.num, .conference-items th.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}

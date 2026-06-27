@@ -5,15 +5,19 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { Drawer } from '../../components/Drawer';
 import { SelectFilter } from '../../components/SelectFilter';
 import { SearchInput } from '../../components/SearchInput';
+import { Timeline } from '../../components/Timeline';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useTableFilter } from '../../hooks/useTableFilter';
 import { adminApi } from '../../services/adminApi';
 import { toast } from '../../lib/toast';
-import { formatDateTime } from '../../lib/format';
+import { formatDateTime, formatRelativeMinutes } from '../../lib/format';
+import { eventToTimelineItem, summarizeUserActivity } from '../../lib/timeline';
+
+const EMPTY_DRAWER = { open: false, user: null, events: [], loading: false };
 
 export const UsersView = ({ activeUsers, onRefresh }) => {
   const { confirm, ConfirmModalNode } = useConfirm();
-  const [drawerState, setDrawerState] = useState({ open: false, user: null, events: [], loading: false });
+  const [drawerState, setDrawerState] = useState(EMPTY_DRAWER);
   const [statusValue, setStatusValue] = useState('');
   const {
     filtered,
@@ -29,72 +33,151 @@ export const UsersView = ({ activeUsers, onRefresh }) => {
 
   const handleForceLogout = async (row) => {
     const approved = await confirm({
-      title: 'Forçar logout do usuário?',
-      description: `O status atual de ${row.name || row.email || 'usuário'} será alterado para signed_out.`,
-      confirmLabel: 'Forçar logout',
+      title: 'Encerrar sessão do colaborador no app?',
+      description: `O status atual de ${row.name || row.email || 'colaborador'} será alterado para signed_out.`,
+      confirmLabel: 'Encerrar sessão',
       danger: true,
     });
 
     if (!approved) return;
 
-    const loadingId = toast.loading('Forçando logout...');
+    const loadingId = toast.loading('Encerrando sessão...');
     try {
       const affected = await adminApi.forceSignOut(row.user_id);
       await onRefresh?.();
       if (affected > 0) {
-        toast.success('Logout forçado com sucesso.');
+        toast.success('Sessão encerrada com sucesso.');
       } else {
-        toast.error('Nenhuma sessão ativa encontrada para este usuário.');
+        toast.error('Nenhuma sessão ativa encontrada para este colaborador.');
       }
     } catch (error) {
-      toast.error(error?.message || 'Falha ao forçar o logout.');
+      toast.error(error?.message || 'Falha ao encerrar a sessão.');
     } finally {
       toast.dismiss(loadingId);
     }
   };
 
-  const openHistory = async (row) => {
+  const openProfile = async (row) => {
     setDrawerState({ open: true, user: row, events: [], loading: true });
-
     try {
-      const events = await adminApi.getUserEvents(row.user_id);
+      const events = await adminApi.getUserEvents(row.user_id, 60);
       setDrawerState({ open: true, user: row, events, loading: false });
     } catch (error) {
       setDrawerState({ open: true, user: row, events: [], loading: false });
-      toast.error(error?.message || 'Falha ao carregar o histórico do usuário.');
+      toast.error(error?.message || 'Falha ao carregar o perfil do colaborador.');
     }
   };
 
   const rows = useMemo(() => filtered, [filtered]);
+
+  const profileUser = drawerState.user;
+  const activity = useMemo(
+    () => summarizeUserActivity(drawerState.events),
+    [drawerState.events],
+  );
+  const timelineItems = useMemo(
+    () => drawerState.events.map(eventToTimelineItem),
+    [drawerState.events],
+  );
+
+  // Dados principais do perfil (briefing §11). Campos ainda não publicados pelo
+  // app aparecem como "—" em vez de serem inventados.
+  const profileFields = profileUser ? [
+    { label: 'E-mail', value: profileUser.email || '—' },
+    { label: 'Função operacional', value: profileUser.role || '—' },
+    { label: 'Status no app', value: profileUser.status || 'offline' },
+    { label: 'Plataforma', value: profileUser.platform || '—' },
+    { label: 'Versão do app', value: profileUser.app_version || '—' },
+    { label: 'Módulo atual', value: profileUser.current_module || '—' },
+    { label: 'Tela atual', value: profileUser.current_screen || '—' },
+    { label: 'Pedido/NF em uso', value: profileUser.current_order_ref || '—' },
+    { label: 'Último acesso', value: formatRelativeMinutes(profileUser.last_heartbeat_at) },
+  ] : [];
 
   return (
     <>
       {ConfirmModalNode}
       <Drawer
         open={drawerState.open}
-        title={`Histórico de ${drawerState.user?.name || drawerState.user?.email || 'usuário'}`}
-        onClose={() => setDrawerState({ open: false, user: null, events: [], loading: false })}
+        width={560}
+        title={`Perfil de ${profileUser?.name || profileUser?.email || 'colaborador'}`}
+        onClose={() => setDrawerState(EMPTY_DRAWER)}
       >
-        {drawerState.loading ? (
-          <div className="inline-loading" role="status">Carregando eventos...</div>
-        ) : (
-          <div className="drawer-stack">
-            {drawerState.events.map((event) => (
-              <div key={event.id} className="detail-card">
-                <strong>{event.module} · {event.event_type}</strong>
-                <span>{formatDateTime(event.created_at)}</span>
-                <span>{event.entity_type || '-'} · {event.entity_id || '-'}</span>
+        {profileUser ? (
+          <div className="profile-drawer">
+            <div className="profile-header">
+              <div className="profile-avatar-lg" aria-hidden="true">
+                {(profileUser.name || profileUser.email || '?').slice(0, 2).toUpperCase()}
               </div>
-            ))}
-            {!drawerState.events.length ? <div className="empty-state">Sem eventos para esse usuário.</div> : null}
+              <div className="profile-id">
+                <strong>{profileUser.name || '—'}</strong>
+                <span>{profileUser.email || '—'}</span>
+                <StatusBadge value={profileUser.status} />
+              </div>
+            </div>
+
+            <section className="profile-section">
+              <h4 className="profile-section-title">Dados principais</h4>
+              <div className="profile-grid">
+                {profileFields.map((field) => (
+                  <div className="profile-field" key={field.label}>
+                    <span className="profile-field-label">{field.label}</span>
+                    <span className="profile-field-value">{field.value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="profile-section">
+              <h4 className="profile-section-title">Atividade (últimos eventos)</h4>
+              <div className="profile-metrics">
+                <div className="profile-metric">
+                  <strong>{activity.total}</strong>
+                  <span>Eventos registrados</span>
+                </div>
+                <div className="profile-metric">
+                  <strong>{activity.last7days}</strong>
+                  <span>Nos últimos 7 dias</span>
+                </div>
+                <div className="profile-metric">
+                  <strong>{activity.modulesRanked.length}</strong>
+                  <span>Módulos atuados</span>
+                </div>
+              </div>
+              {activity.modulesRanked.length ? (
+                <div className="profile-modules">
+                  {activity.modulesRanked.map(([module, count]) => (
+                    <div className="profile-module-row" key={module}>
+                      <span className="profile-module-name">{module}</span>
+                      <span className="profile-module-count">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+
+            <section className="profile-section">
+              <h4 className="profile-section-title">Linha do tempo</h4>
+              {drawerState.loading ? (
+                <div className="inline-loading" role="status">Carregando atividade...</div>
+              ) : (
+                <Timeline items={timelineItems} emptyMessage="Sem eventos para esse colaborador." />
+              )}
+            </section>
+
+            <div className="profile-actions">
+              <button type="button" className="danger-button" onClick={() => handleForceLogout(profileUser)} title="Encerrar sessão no app">
+                Encerrar sessão no app
+              </button>
+            </div>
           </div>
-        )}
+        ) : null}
       </Drawer>
 
       <PanelSection
-        title="Usuários online"
+        title="Colaboradores"
         subtitle="Quem está logado, em qual módulo e com qual referência operacional."
-        kicker="Presença remota"
+        kicker="Supervisão de equipe"
       >
         <div className="filter-bar">
           <SelectFilter
@@ -109,7 +192,7 @@ export const UsersView = ({ activeUsers, onRefresh }) => {
             ]}
           />
           <div className="search-expand">
-            <SearchInput value={search} onChange={setSearch} placeholder="Buscar por usuário, e-mail ou módulo" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Buscar por colaborador, e-mail ou módulo" />
           </div>
         </div>
 
@@ -125,13 +208,13 @@ export const UsersView = ({ activeUsers, onRefresh }) => {
           columns={[
             {
               key: 'name',
-              label: 'Usuário',
+              label: 'Colaborador',
               searchValue: (row) => `${row.name || ''} ${row.email || ''}`,
               render: (row) => (
-                <div>
+                <button type="button" className="link-button" onClick={() => openProfile(row)} title="Abrir perfil completo">
                   <strong className="table-main-text">{row.name || '-'}</strong>
                   <div className="cell-subtext">{row.email || '-'}</div>
-                </div>
+                </button>
               ),
             },
             { key: 'platform', label: 'Plataforma' },
@@ -154,11 +237,11 @@ export const UsersView = ({ activeUsers, onRefresh }) => {
               label: 'Ações',
               render: (row) => (
                 <div className="table-actions-row">
-                  <button type="button" className="table-action-button is-danger" onClick={() => handleForceLogout(row)} title="Forçar logout">
-                    Logout
+                  <button type="button" className="table-action-button" onClick={() => openProfile(row)} title="Ver perfil completo">
+                    Perfil
                   </button>
-                  <button type="button" className="table-action-button" onClick={() => openHistory(row)} title="Ver histórico">
-                    Histórico
+                  <button type="button" className="table-action-button is-danger" onClick={() => handleForceLogout(row)} title="Encerrar sessão no app">
+                    Logout
                   </button>
                 </div>
               ),

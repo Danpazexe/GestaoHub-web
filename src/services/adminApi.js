@@ -324,10 +324,24 @@ export const adminApi = {
   },
 
   async getAssignableUsers() {
+    // Lê os ativos da view em português (aliasando de volta) com fallback p/ a
+    // view inglesa. admin_users e profiles continuam como tabelas (não são views).
+    const fetchActiveUsers = async () => {
+      try {
+        const result = await supabase
+          .from('usuarios_colaboradores_ativos')
+          .select('user_id:usuario_id, name:nome, email, status:situacao, current_module:modulo_atual');
+        if (result.error) throw result.error;
+        return result;
+      } catch {
+        return supabase
+          .from('admin_active_users_view')
+          .select('user_id, name, email, status, current_module');
+      }
+    };
+
     const [activeUsersResult, adminUsersResult] = await Promise.all([
-      supabase
-        .from('admin_active_users_view')
-        .select('user_id, name, email, status, current_module'),
+      fetchActiveUsers(),
       supabase
         .from('admin_users')
         .select('user_id, role'),
@@ -415,18 +429,20 @@ export const adminApi = {
   },
 
   async getAvarias() {
-    return readMany('admin_avaria_items_view', {
-      orderBy: 'item_updated_at',
-      ascending: false,
-      limit: 50,
+    return readPt({
+      ptTable: 'avarias_itens',
+      select: 'user_id:usuario_id, user_name:nome_usuario, user_email:email_usuario, batch_id:lote_id, batch_status:situacao_lote, item_id, codprod:codigo_produto, descricao, quantidade, lote, damage_type:tipo_avaria, resolution_type:tipo_resolucao, item_status:situacao_item, item_created_at:item_criado_em, item_updated_at:item_atualizado_em',
+      orderBy: 'item_atualizado_em', ascending: false, limit: 50,
+      fallback: { table: 'admin_avaria_items_view', options: { orderBy: 'item_updated_at', ascending: false, limit: 50 } },
     });
   },
 
   async getConferenciaRecebimentos() {
-    return readMany('admin_conferencia_recebimentos_view', {
-      orderBy: 'updated_at',
-      ascending: false,
-      limit: 30,
+    return readPt({
+      ptTable: 'recebimento_conferencias',
+      select: 'user_id:usuario_id, user_name:nome_usuario, user_email:email_usuario, id, supplier:fornecedor, invoice:nf, conferente, sync_status:situacao_sync, items_count:qtd_itens, divergences_count:qtd_divergencias, payload:dados, created_at:criado_em, updated_at:atualizado_em',
+      orderBy: 'atualizado_em', ascending: false, limit: 30,
+      fallback: { table: 'admin_conferencia_recebimentos_view', options: { orderBy: 'updated_at', ascending: false, limit: 30 } },
     });
   },
 

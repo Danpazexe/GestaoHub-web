@@ -152,7 +152,8 @@ select
   items_count       as qtd_itens,
   divergences_count as qtd_divergencias,
   created_at        as criado_em,
-  updated_at        as atualizado_em
+  updated_at        as atualizado_em,
+  payload           as dados   -- jsonb completo (usado para gerar bônus)
 from public.admin_conferencia_recebimentos_view;
 
 -- ── Conferência ──────────────────────────────────────────────────────────────

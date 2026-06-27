@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { injectSpeedInsights } from '@vercel/speed-insights';
 import App from './App';
 import { initGlobalLogger } from './lib/logger';
 // CSS dividido por área (briefing §28). A ORDEM importa para a cascata: tokens →
@@ -15,6 +16,9 @@ import './styles/modules.css';
 
 // Captura erros globais para a tela de Logs técnicos (briefing §34.17).
 initGlobalLogger();
+
+// Vercel Speed Insights: injeta o rastreador de performance automaticamente.
+injectSpeedInsights();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

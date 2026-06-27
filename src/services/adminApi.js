@@ -231,6 +231,9 @@ const insertPurchaseOrderWithItems = async ({
 
 export const adminApi = {
   async signIn(email, password) {
+    if (!supabase) {
+      throw new Error('Supabase não configurado: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no ambiente (e refaça o deploy).');
+    }
     const { data, error } = await supabase.auth.signInWithPassword({
       email: String(email || '').trim(),
       password: String(password || '').trim(),

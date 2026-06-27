@@ -23,6 +23,7 @@ const RankingView = lazy(() => import('./features/ranking/RankingView').then((m)
 const IndicadoresView = lazy(() => import('./features/indicadores/IndicadoresView').then((m) => ({ default: m.IndicadoresView })));
 const TvView = lazy(() => import('./features/tv/TvView').then((m) => ({ default: m.TvView })));
 const AdminCenterView = lazy(() => import('./features/admin/AdminCenterView').then((m) => ({ default: m.AdminCenterView })));
+const ConfiguracoesView = lazy(() => import('./features/configuracoes/ConfiguracoesView').then((m) => ({ default: m.ConfiguracoesView })));
 const MapaView = lazy(() => import('./features/mapa/MapaView').then((m) => ({ default: m.MapaView })));
 const RelatoriosView = lazy(() => import('./features/relatorios/RelatoriosView').then((m) => ({ default: m.RelatoriosView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
@@ -493,6 +494,7 @@ function App() {
       />
     ),
     qualidade: <QualidadeView validade={dataState.validade} />,
+    configuracoes: <ConfiguracoesView />,
     relatorios: (
       <RelatoriosView
         validade={dataState.validade}

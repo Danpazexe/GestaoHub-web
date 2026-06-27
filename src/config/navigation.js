@@ -36,6 +36,7 @@ export const navGroups = [
     key: 'system',
     label: 'Sistema',
     items: [
+      { key: 'configuracoes', label: 'Configurações', shortLabel: 'CG', icon: 'config' },
       { key: 'admin', label: 'Administração', shortLabel: 'AD', icon: 'admin' },
     ],
   },

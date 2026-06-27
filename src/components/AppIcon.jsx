@@ -131,6 +131,14 @@ const icons = {
       <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </>
   ),
+  config: (
+    <>
+      <path d="M4 6h10M18 6h2" />
+      <path d="M4 12h2M10 12h10" />
+      <path d="M4 18h14M20 18h0" />
+      <circle cx="16" cy="6" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="18" cy="18" r="2" />
+    </>
+  ),
 };
 
 export const AppIcon = ({ name, size = 18, className = '' }) => (

@@ -793,6 +793,20 @@ button { cursor: pointer; }
   .data-table { font-size: 11px; }
   .table-pagination { display: none !important; }
 }
+
+/* ─── configurações do sistema (briefing §24) ─────────────── */
+.config-group-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; color: var(--ink); }
+.config-faixas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 520px; }
+.config-hint { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.config-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.config-list-field { display: grid; gap: 4px; }
+.config-list-label { font-size: 12px; font-weight: 700; color: var(--ink); }
+.config-list-hint { font-size: 11px; color: var(--muted); }
+.config-list-field textarea { width: 100%; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); color: var(--ink); resize: vertical; font-family: var(--font-body); font-size: 13px; }
+.config-list-field textarea:focus { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(252, 150, 78, 0.16); }
+.config-readonly-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (max-width: 900px) { .config-faixas, .config-lists { grid-template-columns: 1fr; } }
 .topbar-refresh-note {
   font-size: 11px; color: var(--muted); font-weight: 500;
   padding: 8px 13px; border-radius: 999px;

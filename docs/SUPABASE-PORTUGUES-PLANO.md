@@ -123,11 +123,21 @@ e as views antigas viram aliases — aí sim removíveis.
 ## 5. O que já está pronto
 
 - **`migrations/0004_views_portugues_admin.sql`** — schema `admin` + 13 views
-  `visao_*` (alias não-destrutivo, `security_invoker`).
-- Para usar na Webapp depois de aplicar: em **Settings > API > Exposed schemas**
-  adicione `admin`, e no `adminApi` troque, por tela:
-  `supabase.from('admin_validade_products_view')` →
-  `supabase.schema('admin').from('visao_produtos_validade')`.
+  `visao_*` (alias com nomes em português, colunas ainda em inglês).
+- **`migrations/0005_schemas_dominio_portugues.sql`** — schemas de domínio
+  (`usuarios`, `validade`, `avarias`, `recebimento`, `conferencia`, `sistema`,
+  `auditoria`) com views de **COLUNAS em português** (`codigo_produto`,
+  `dias_restantes`, `situacao`, `criado_em`…). É a camada de leitura/BI
+  realmente em português. Não toca nas tabelas físicas → o App mobile (que
+  escreve com `upsert`) **não quebra**.
+- **`migrations/0000_aplicar_tudo.sql`** — aplica 0001→0005 de uma vez.
+- Por que só leitura: o App usa `.upsert()` (INSERT … ON CONFLICT), que o
+  Postgres **não permite através de view** — então renomear as tabelas físicas
+  quebraria o sync do app e os builds já instalados. A camada de views entrega o
+  português sem esse risco.
+- Para a Webapp consumir: em **Settings > API > Exposed schemas** adicione os
+  schemas, e migre o `adminApi` tela por tela (com fallback para a view antiga),
+  ex.: `supabase.schema('validade').from('produtos')`.
 
 ## 6. Riscos & rollback
 

@@ -1,19 +1,16 @@
 -- ============================================================================
--- GestãoHub — APLICAR TUDO (consolidado: 0001, 0002, 0003, 0004, 0006, 0007)
+-- GestãoHub — APLICAR TUDO (consolidado: 0001-0004, 0006, 0007, 0008)
 -- ============================================================================
--- Arquivo único, idempotente (pode reaplicar sem erro). Cole inteiro no
--- Supabase Dashboard > SQL Editor. NÃO precisa configurar "Exposed schemas":
--- as views em português ficam no schema public.
---
--- Ordem: localização (0001) → aprovação (0002) → imagens/validade (0003) →
--- views pt alias em schema admin (0004) → views pt com COLUNAS no public (0006,
--- já com as filas de conferência completas) → 0007 (idempotência das filas).
+-- Arquivo único, idempotente (pode reaplicar). Cole no Supabase > SQL Editor.
+-- Não precisa configurar "Exposed schemas" (views pt ficam no public).
+-- Ordem: localização → aprovação → imagens → views pt (admin) → views pt
+-- (public, com filas completas e payload de recebimento) → 0007/0008 (idempot.).
 -- ============================================================================
 
 
--- ╔══════════════════════════════════════════════════════════════════════╗
+-- ╔════════════════════════════════════════════════════════════════════╗
 -- ║ BLOCO 0001_setor_filial_localizacao
--- ╚══════════════════════════════════════════════════════════════════════╝
+-- ╚════════════════════════════════════════════════════════════════════╝
 -- Migração 0001 — Controle por filial, loja, setor e localização (briefing §2/§3)
 --
 -- Adiciona campos de localização operacional às tabelas de domínio. É
@@ -92,9 +89,9 @@ create index if not exists idx_po_sector        on public.purchase_orders (secto
 -- ao frontend.
 
 
--- ╔══════════════════════════════════════════════════════════════════════╗
+-- ╔════════════════════════════════════════════════════════════════════╗
 -- ║ BLOCO 0002_workflow_aprovacao
--- ╚══════════════════════════════════════════════════════════════════════╝
+-- ╚════════════════════════════════════════════════════════════════════╝
 -- Migração 0002 — Workflow de aprovação (briefing §34.6)
 --
 -- Cria a fila de solicitações de aprovação de ações críticas, com auditoria
@@ -159,9 +156,9 @@ create or replace view public.admin_approval_requests_view as
   left join public.profiles dp on dp.user_id = ar.decided_by;
 
 
--- ╔══════════════════════════════════════════════════════════════════════╗
+-- ╔════════════════════════════════════════════════════════════════════╗
 -- ║ BLOCO 0003_imagens_validade_admin
--- ╚══════════════════════════════════════════════════════════════════════╝
+-- ╚════════════════════════════════════════════════════════════════════╝
 -- Migração 0003 — Imagens de produto no painel admin (Controle de Validade)
 --
 -- Problema: a Webapp não exibe a imagem do produto porque:
@@ -220,9 +217,9 @@ using (
 -- assinadas a partir de image_path e exibir as imagens dos produtos.
 
 
--- ╔══════════════════════════════════════════════════════════════════════╗
+-- ╔════════════════════════════════════════════════════════════════════╗
 -- ║ BLOCO 0004_views_portugues_admin
--- ╚══════════════════════════════════════════════════════════════════════╝
+-- ╚════════════════════════════════════════════════════════════════════╝
 -- Migração 0004 — Camada de views administrativas em português (briefing §7/§11)
 --
 -- Estratégia SEGURA e NÃO-DESTRUTIVA (briefing §7.3): cria um schema `admin` com
@@ -312,9 +309,9 @@ alter default privileges in schema admin grant select on tables to authenticated
 -- schema('admin').visao_produtos_validade), validando cada uma.
 
 
--- ╔══════════════════════════════════════════════════════════════════════╗
+-- ╔════════════════════════════════════════════════════════════════════╗
 -- ║ BLOCO 0006_views_portugues_public
--- ╚══════════════════════════════════════════════════════════════════════╝
+-- ╚════════════════════════════════════════════════════════════════════╝
 -- Migração 0006 — Views em português NO SCHEMA PUBLIC (sem expor schema)
 --
 -- Por que existe: a 0005 cria as views em schemas de domínio (validade.*,
@@ -469,7 +466,8 @@ select
   items_count       as qtd_itens,
   divergences_count as qtd_divergencias,
   created_at        as criado_em,
-  updated_at        as atualizado_em
+  updated_at        as atualizado_em,
+  payload           as dados   -- jsonb completo (usado para gerar bônus)
 from public.admin_conferencia_recebimentos_view;
 
 -- ── Conferência ──────────────────────────────────────────────────────────────
@@ -604,9 +602,9 @@ to authenticated, anon;
 -- "Exposed schemas". Rollback: drop view public.<nome>;  (nada do public muda).
 
 
--- ╔══════════════════════════════════════════════════════════════════════╗
+-- ╔════════════════════════════════════════════════════════════════════╗
 -- ║ BLOCO 0007_completa_filas_conferencia_pt
--- ╚══════════════════════════════════════════════════════════════════════╝
+-- ╚════════════════════════════════════════════════════════════════════╝
 -- Migração 0007 — Completa as views de fila de conferência em português
 --
 -- As views conferencia_fila_entrada / conferencia_fila_saida (0006) eram enxutas
@@ -665,4 +663,36 @@ from public.admin_conferencia_saida_bonus_queue_view;
 
 grant select on public.conferencia_fila_entrada, public.conferencia_fila_saida
   to authenticated, anon;
+
+
+-- ╔════════════════════════════════════════════════════════════════════╗
+-- ║ BLOCO 0008_recebimento_conferencias_payload
+-- ╚════════════════════════════════════════════════════════════════════╝
+-- Migração 0008 — Expõe o payload (jsonb) em recebimento_conferencias (pt)
+--
+-- A tela de Recebimento gera bônus a partir do payload do recebimento
+-- (recebimentoRow.payload.items, .invoice, …). A view recebimento_conferencias
+-- (0006) não trazia esse jsonb, então faltava para migrar getConferenciaRecebimentos
+-- ao português. Esta migração apenda a coluna `dados` (= payload).
+--
+-- Append no fim → CREATE OR REPLACE basta (não muda ordem das colunas existentes).
+-- Idempotente, security_invoker. Rodar DEPOIS de 0006.
+-- Como aplicar: Supabase Dashboard > SQL Editor.
+
+create or replace view public.recebimento_conferencias with (security_invoker = true) as
+select
+  user_id           as usuario_id,
+  user_name         as nome_usuario,
+  user_email        as email_usuario,
+  id                as id,
+  supplier          as fornecedor,
+  invoice           as nf,
+  conferente        as conferente,
+  sync_status       as situacao_sync,
+  items_count       as qtd_itens,
+  divergences_count as qtd_divergencias,
+  created_at        as criado_em,
+  updated_at        as atualizado_em,
+  payload           as dados   -- << jsonb completo, usado para gerar bônus
+from public.admin_conferencia_recebimentos_view;
 

@@ -21,6 +21,7 @@ const FornecedoresView = lazy(() => import('./features/fornecedores/Fornecedores
 const QualidadeView = lazy(() => import('./features/qualidade/QualidadeView').then((m) => ({ default: m.QualidadeView })));
 const RankingView = lazy(() => import('./features/ranking/RankingView').then((m) => ({ default: m.RankingView })));
 const IndicadoresView = lazy(() => import('./features/indicadores/IndicadoresView').then((m) => ({ default: m.IndicadoresView })));
+const TvView = lazy(() => import('./features/tv/TvView').then((m) => ({ default: m.TvView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
 const TratativasView = lazy(() => import('./features/tratativas/TratativasView').then((m) => ({ default: m.TratativasView })));
 const RecebimentoView = lazy(() => import('./features/recebimento/RecebimentoView').then((m) => ({ default: m.RecebimentoView })));
@@ -505,6 +506,15 @@ function App() {
 
   if (!user || !admin) {
     return <LoginForm onSuccess={reload} globalError={error} disabled={loading} />;
+  }
+
+  // Modo TV (briefing §16): tela cheia standalone, fora do AdminShell.
+  if (routeKey === 'tv') {
+    return (
+      <Suspense fallback={<div className="fullscreen-state">Carregando painel...</div>}>
+        <TvView data={dataState} lastRefresh={dataState.lastRefresh || '-'} onExit={() => navigate('/inicio')} />
+      </Suspense>
+    );
   }
 
   return (

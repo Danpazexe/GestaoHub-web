@@ -130,7 +130,13 @@ e as views antigas viram aliases — aí sim removíveis.
   `dias_restantes`, `situacao`, `criado_em`…). É a camada de leitura/BI
   realmente em português. Não toca nas tabelas físicas → o App mobile (que
   escreve com `upsert`) **não quebra**.
-- **`migrations/0000_aplicar_tudo.sql`** — aplica 0001→0005 de uma vez.
+- **`migrations/0006_views_portugues_public.sql`** — MESMAS views/colunas em
+  português, porém no schema **public** com nome prefixado (`validade_produtos`,
+  `recebimento_notas_entrada`, `conferencia_divergencias_pt`…). **Não precisa
+  configurar "Exposed schemas"** — o PostgREST já expõe o public. É a forma
+  recomendada se você não consegue expor schemas. (0005 e 0006 são alternativas.)
+- **`migrations/0000_aplicar_tudo.sql`** — aplica 0001, 0002, 0003, 0004 e 0006
+  de uma vez (usa a versão public, sem config no painel).
 - Por que só leitura: o App usa `.upsert()` (INSERT … ON CONFLICT), que o
   Postgres **não permite através de view** — então renomear as tabelas físicas
   quebraria o sync do app e os builds já instalados. A camada de views entrega o

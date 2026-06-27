@@ -1,14 +1,16 @@
 -- ============================================================================
--- GestãoHub — APLICAR TUDO (migrações consolidadas 0001 → 0005)
+-- GestãoHub — APLICAR TUDO (consolidado: 0001, 0002, 0003, 0004, 0006)
 -- ============================================================================
--- Arquivo único, idempotente e na ORDEM CORRETA. Pode ser rodado mesmo se parte
--- já foi aplicada. Cole inteiro no Supabase Dashboard > SQL Editor.
+-- Arquivo único, idempotente. Cole inteiro no Supabase Dashboard > SQL Editor.
+-- NÃO precisa configurar "Exposed schemas": as views em português ficam no
+-- schema public (bloco 0006), já visíveis ao PostgREST.
 --
 -- Ordem: localização (0001) → aprovação (0002) → imagens/validade (0003) →
--- views pt alias (0004) → schemas de domínio + colunas em português (0005).
+-- views pt alias em schema admin (0004) → views pt com COLUNAS em portugues no
+-- public (0006).
 --
--- Pós-aplicação: Settings > API > "Exposed schemas" → adicionar:
---   admin, usuarios, validade, avarias, recebimento, conferencia, sistema, auditoria
+-- Obs.: a 0005 (mesmas views em schemas de dominio) é alternativa à 0006 e exige
+-- expor schemas; por isso fica de fora deste consolidado. Use uma OU outra.
 -- ============================================================================
 
 
@@ -314,37 +316,25 @@ alter default privileges in schema admin grant select on tables to authenticated
 
 
 -- ╔══════════════════════════════════════════════════════════════════════╗
--- ║ BLOCO 0005_schemas_dominio_portugues
+-- ║ BLOCO 0006_views_portugues_public
 -- ╚══════════════════════════════════════════════════════════════════════╝
--- Migração 0005 — Schemas de domínio + views com COLUNAS em português
--- (briefing §8/§9/§10/§12). Camada de LEITURA/BI em português, sem tocar nas
--- tabelas físicas (o App mobile continua escrevendo nelas em inglês com upsert).
+-- Migração 0006 — Views em português NO SCHEMA PUBLIC (sem expor schema)
 --
--- Estratégia segura: cada view em português SELECIONA da view admin_*_view
--- existente e ALIASA as colunas para português. Só usa colunas que a Webapp já
--- consome (logo, existem na sua base). Idempotente e não-destrutivo.
+-- Por que existe: a 0005 cria as views em schemas de domínio (validade.*,
+-- recebimento.*…), que exigem "Settings > API > Exposed schemas" no Supabase —
+-- passo que nem sempre dá pra fazer. Esta migração cria EXATAMENTE as mesmas
+-- views, com as mesmas COLUNAS em português, porém no schema `public` com nome
+-- prefixado por domínio (validade_produtos, recebimento_notas_entrada, …). O
+-- PostgREST já expõe o `public` automaticamente → nada a configurar no painel.
 --
--- Rodar DEPOIS de 0003 (para validade ter image_path -> caminho_imagem).
+-- No frontend: supabase.from('validade_produtos').select(...)
 --
--- Pós-aplicação: Supabase Dashboard > Settings > API > "Exposed schemas",
--- adicione: usuarios, validade, avarias, recebimento, conferencia, sistema,
--- auditoria. No frontend: supabase.schema('validade').from('produtos').
--- (Se preferir expor menos, troque os schemas abaixo por um único, ex.: `pt`.)
---
--- security_invoker = true: mantém a RLS / is_admin_user() de quem consulta.
-
-create schema if not exists usuarios;
-create schema if not exists validade;
-create schema if not exists avarias;
-create schema if not exists recebimento;
-create schema if not exists conferencia;
-create schema if not exists sistema;
-create schema if not exists auditoria;
-grant usage on schema usuarios, validade, avarias, recebimento, conferencia, sistema, auditoria
-  to authenticated, anon, service_role;
+-- É alternativa à 0005 (pode rodar só esta). Idempotente, não-destrutivo,
+-- security_invoker. Rodar DEPOIS de 0003 (image_path -> caminho_imagem).
+-- Como aplicar: Supabase Dashboard > SQL Editor.
 
 -- ── Usuários ─────────────────────────────────────────────────────────────────
-create or replace view usuarios.colaboradores_ativos with (security_invoker = true) as
+create or replace view public.usuarios_colaboradores_ativos with (security_invoker = true) as
 select
   session_id        as sessao_id,
   user_id           as usuario_id,
@@ -361,7 +351,7 @@ select
 from public.admin_active_users_view;
 
 -- ── Validade ─────────────────────────────────────────────────────────────────
-create or replace view validade.produtos with (security_invoker = true) as
+create or replace view public.validade_produtos with (security_invoker = true) as
 select
   user_id            as usuario_id,
   user_name          as nome_usuario,
@@ -386,7 +376,7 @@ select
 from public.admin_validade_products_view;
 
 -- ── Avarias ──────────────────────────────────────────────────────────────────
-create or replace view avarias.itens with (security_invoker = true) as
+create or replace view public.avarias_itens with (security_invoker = true) as
 select
   user_id         as usuario_id,
   user_name       as nome_usuario,
@@ -406,7 +396,7 @@ select
 from public.admin_avaria_items_view;
 
 -- ── Recebimento ──────────────────────────────────────────────────────────────
-create or replace view recebimento.tratativas with (security_invoker = true) as
+create or replace view public.recebimento_tratativas with (security_invoker = true) as
 select
   user_id                as usuario_id,
   user_name              as nome_usuario,
@@ -429,7 +419,7 @@ select
   updated_at             as atualizado_em
 from public.admin_tratativas_view;
 
-create or replace view recebimento.notas_entrada with (security_invoker = true) as
+create or replace view public.recebimento_notas_entrada with (security_invoker = true) as
 select
   id                as id,
   order_number      as numero_pedido,
@@ -455,7 +445,7 @@ select
   updated_at        as atualizado_em
 from public.admin_purchase_orders_view;
 
-create or replace view recebimento.acoes_pedido with (security_invoker = true) as
+create or replace view public.recebimento_acoes_pedido with (security_invoker = true) as
 select
   id              as id,
   order_id        as pedido_id,
@@ -469,7 +459,7 @@ select
   created_at      as criado_em
 from public.admin_purchase_order_actions_view;
 
-create or replace view recebimento.conferencias with (security_invoker = true) as
+create or replace view public.recebimento_conferencias with (security_invoker = true) as
 select
   user_id           as usuario_id,
   user_name         as nome_usuario,
@@ -486,7 +476,8 @@ select
 from public.admin_conferencia_recebimentos_view;
 
 -- ── Conferência ──────────────────────────────────────────────────────────────
-create or replace view conferencia.saidas with (security_invoker = true) as
+-- (sufixo _pt onde o nome colidiria com uma tabela existente em public)
+create or replace view public.conferencia_saidas_pt with (security_invoker = true) as
 select
   user_id           as usuario_id,
   user_name         as nome_usuario,
@@ -502,7 +493,7 @@ select
   updated_at        as atualizado_em
 from public.admin_conferencia_saidas_view;
 
-create or replace view conferencia.divergencias with (security_invoker = true) as
+create or replace view public.conferencia_divergencias_pt with (security_invoker = true) as
 select
   user_id      as usuario_id,
   user_name    as nome_usuario,
@@ -522,22 +513,22 @@ select
   updated_at   as atualizado_em
 from public.admin_conferencia_divergencias_view;
 
-create or replace view conferencia.fila_entrada with (security_invoker = true) as
+create or replace view public.conferencia_fila_entrada with (security_invoker = true) as
 select
-  id                      as id,
-  invoice_number          as numero_nf,
-  supplier_name           as nome_fornecedor,
-  item_count              as qtd_itens,
-  total_quantity          as quantidade_total,
-  status                  as situacao,
-  assigned_user_id        as responsavel_id,
-  assigned_user_name      as responsavel_nome,
-  started_at              as iniciada_em,
-  finished_at             as finalizada_em,
-  created_at              as criado_em
+  id                 as id,
+  invoice_number     as numero_nf,
+  supplier_name      as nome_fornecedor,
+  item_count         as qtd_itens,
+  total_quantity     as quantidade_total,
+  status             as situacao,
+  assigned_user_id   as responsavel_id,
+  assigned_user_name as responsavel_nome,
+  started_at         as iniciada_em,
+  finished_at        as finalizada_em,
+  created_at         as criado_em
 from public.admin_conferencia_bonus_queue_view;
 
-create or replace view conferencia.fila_saida with (security_invoker = true) as
+create or replace view public.conferencia_fila_saida with (security_invoker = true) as
 select
   id                 as id,
   order_code         as codigo_pedido,
@@ -556,7 +547,7 @@ select
 from public.admin_conferencia_saida_bonus_queue_view;
 
 -- ── Sistema (resumo) ─────────────────────────────────────────────────────────
-create or replace view sistema.resumo_dashboard with (security_invoker = true) as
+create or replace view public.sistema_resumo_dashboard with (security_invoker = true) as
 select
   active_users             as usuarios_ativos,
   open_tratativas          as tratativas_abertas,
@@ -568,7 +559,7 @@ select
 from public.admin_dashboard_summary_view;
 
 -- ── Auditoria ────────────────────────────────────────────────────────────────
-create or replace view auditoria.eventos with (security_invoker = true) as
+create or replace view public.auditoria_eventos with (security_invoker = true) as
 select
   id          as id,
   user_id     as usuario_id,
@@ -584,16 +575,22 @@ select
 from public.operational_events;
 
 -- ── Permissões de leitura ────────────────────────────────────────────────────
-grant select on all tables in schema usuarios, validade, avarias, recebimento, conferencia, sistema, auditoria
-  to authenticated, anon;
-alter default privileges in schema usuarios  grant select on tables to authenticated, anon;
-alter default privileges in schema validade  grant select on tables to authenticated, anon;
-alter default privileges in schema avarias   grant select on tables to authenticated, anon;
-alter default privileges in schema recebimento grant select on tables to authenticated, anon;
-alter default privileges in schema conferencia grant select on tables to authenticated, anon;
-alter default privileges in schema sistema    grant select on tables to authenticated, anon;
-alter default privileges in schema auditoria  grant select on tables to authenticated, anon;
+grant select on
+  public.usuarios_colaboradores_ativos,
+  public.validade_produtos,
+  public.avarias_itens,
+  public.recebimento_tratativas,
+  public.recebimento_notas_entrada,
+  public.recebimento_acoes_pedido,
+  public.recebimento_conferencias,
+  public.conferencia_saidas_pt,
+  public.conferencia_divergencias_pt,
+  public.conferencia_fila_entrada,
+  public.conferencia_fila_saida,
+  public.sistema_resumo_dashboard,
+  public.auditoria_eventos
+to authenticated, anon;
 
--- Rollback: drop schema usuarios, validade, avarias, recebimento, conferencia,
---           sistema, auditoria cascade;  (não toca em nada do public)
+-- Pronto. Views em português prontas para uso direto pela Webapp, sem configurar
+-- "Exposed schemas". Rollback: drop view public.<nome>;  (nada do public muda).
 

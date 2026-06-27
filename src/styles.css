@@ -532,6 +532,70 @@ button { cursor: pointer; }
 @media (max-width: 900px) {
   .topbar-search { order: 3; flex-basis: 100%; max-width: none; }
 }
+
+/* ─── timeline operacional (briefing §9) ──────────────────── */
+.timeline { list-style: none; margin: 0; padding: 4px 0 0; display: grid; gap: 0; }
+.timeline-item { position: relative; display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding-bottom: 16px; }
+.timeline-item::before {
+  content: ''; position: absolute; left: 10px; top: 16px; bottom: -2px;
+  width: 2px; background: var(--line);
+}
+.timeline-item:last-child { padding-bottom: 0; }
+.timeline-item:last-child::before { display: none; }
+.timeline-dot {
+  width: 12px; height: 12px; border-radius: 50%; margin-top: 3px; margin-left: 5px;
+  z-index: 1; box-shadow: 0 0 0 3px var(--surface);
+}
+.timeline-dot.sev-tone-danger  { background: var(--danger); }
+.timeline-dot.sev-tone-warning { background: var(--warning); }
+.timeline-dot.sev-tone-monitor { background: var(--monitor); }
+.timeline-dot.sev-tone-info    { background: var(--info); }
+.timeline-dot.sev-tone-success { background: var(--success); }
+.timeline-content { min-width: 0; }
+.timeline-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.timeline-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.timeline-time { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.timeline-desc { font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+.timeline-meta { display: flex; gap: 10px; font-size: 11px; color: var(--muted-2); margin-top: 3px; }
+.timeline-abs { margin-left: auto; }
+
+/* ─── perfil completo do colaborador (briefing §11/§12) ───── */
+.profile-drawer { display: grid; gap: 20px; }
+.profile-header { display: flex; align-items: center; gap: 14px; }
+.profile-avatar-lg {
+  width: 56px; height: 56px; border-radius: 16px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--grad-brand); color: #1e2433; font-family: var(--font-display);
+  font-weight: 800; font-size: 20px;
+}
+.profile-id { display: grid; gap: 3px; }
+.profile-id strong { font-family: var(--font-display); font-size: 17px; color: var(--ink); }
+.profile-id span { font-size: 12px; color: var(--muted); }
+.profile-id .status-badge { width: fit-content; }
+.profile-section { display: grid; gap: 10px; }
+.profile-section-title {
+  font-size: 11px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--accent); margin: 0;
+}
+.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.profile-field { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line-2); }
+.profile-field-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.profile-field-value { font-size: 13px; font-weight: 600; color: var(--ink); word-break: break-word; }
+.profile-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.profile-metric { display: grid; gap: 2px; padding: 12px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); text-align: center; }
+.profile-metric strong { font-family: var(--font-display); font-size: 22px; color: var(--ink); }
+.profile-metric span { font-size: 11px; color: var(--muted); }
+.profile-modules { display: grid; gap: 6px; }
+.profile-module-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-radius: var(--r-sm); background: var(--surface-2); }
+.profile-module-name { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.profile-module-count { font-size: 12px; font-weight: 700; color: var(--accent); }
+.profile-actions { display: flex; gap: 10px; }
+
+.link-button {
+  display: block; width: 100%; text-align: left; background: transparent;
+  border: none; padding: 0; cursor: pointer; color: inherit;
+}
+.link-button:hover .table-main-text { color: var(--accent); text-decoration: underline; }
 .topbar-refresh-note {
   font-size: 11px; color: var(--muted); font-weight: 500;
   padding: 8px 13px; border-radius: 999px;

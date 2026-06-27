@@ -4,9 +4,11 @@ import { DataTable } from '../../components/DataTable';
 import { Drawer } from '../../components/Drawer';
 import { SelectFilter } from '../../components/SelectFilter';
 import { SearchInput } from '../../components/SearchInput';
+import { Timeline } from '../../components/Timeline';
 import { useTableFilter } from '../../hooks/useTableFilter';
 import { exportCsv } from '../../lib/csv';
 import { formatDateTime } from '../../lib/format';
+import { eventToTimelineItem } from '../../lib/timeline';
 
 export const EventsView = ({ events, purchaseOrderActions }) => {
   const [moduleValue, setModuleValue] = useState('');
@@ -14,6 +16,7 @@ export const EventsView = ({ events, purchaseOrderActions }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [drawerPayload, setDrawerPayload] = useState(null);
+  const [viewMode, setViewMode] = useState('table'); // table | timeline
 
   const filteredBase = useMemo(() => (events || []).filter((row) => {
     if (moduleValue && row.module !== moduleValue) return false;
@@ -45,6 +48,11 @@ export const EventsView = ({ events, purchaseOrderActions }) => {
         subtitle="Registro de eventos operacionais. Sem dados indica que a instrumentação ainda não foi implementada no app."
         kicker="Auditoria"
         actions={(
+          <div className="inline-actions">
+            <div className="segmented" role="tablist" aria-label="Modo de visualização">
+              <button type="button" className={viewMode === 'table' ? 'segmented-btn active' : 'segmented-btn'} onClick={() => setViewMode('table')}>Tabela</button>
+              <button type="button" className={viewMode === 'timeline' ? 'segmented-btn active' : 'segmented-btn'} onClick={() => setViewMode('timeline')}>Linha do tempo</button>
+            </div>
           <button
             type="button"
             className="ghost-button"
@@ -60,6 +68,7 @@ export const EventsView = ({ events, purchaseOrderActions }) => {
           >
             Exportar
           </button>
+          </div>
         )}
       >
         <div className="filter-bar">
@@ -88,35 +97,42 @@ export const EventsView = ({ events, purchaseOrderActions }) => {
           </label>
         </div>
 
-        <DataTable
-          rows={filtered}
-          pageSize={25}
-          sortable
-          columns={[
-            { key: 'module', label: 'Módulo' },
-            { key: 'event_type', label: 'Evento' },
-            { key: 'entity_type', label: 'Tipo' },
-            { key: 'entity_id', label: 'Entidade' },
-            { key: 'actor_name', label: 'Ator', render: (row) => row.actor_name || '-' },
-            { key: 'order_ref', label: 'Pedido/NF' },
-            { key: 'batch_ref', label: 'Lote' },
-            {
-              key: 'payload',
-              label: 'Payload',
-              render: (row) => (
-                <button type="button" className="table-action-button" onClick={() => setDrawerPayload(row.payload || {})} title="Ver payload completo">
-                  Ver payload
-                </button>
-              ),
-            },
-            {
-              key: 'created_at',
-              label: 'Quando',
-              render: (row) => formatDateTime(row.created_at),
-            },
-          ]}
-          emptyMessage="Sem eventos de auditoria registrados."
-        />
+        {viewMode === 'timeline' ? (
+          <Timeline
+            items={allFilteredRows.map(eventToTimelineItem)}
+            emptyMessage="Sem eventos de auditoria registrados."
+          />
+        ) : (
+          <DataTable
+            rows={filtered}
+            pageSize={25}
+            sortable
+            columns={[
+              { key: 'module', label: 'Módulo' },
+              { key: 'event_type', label: 'Evento' },
+              { key: 'entity_type', label: 'Tipo' },
+              { key: 'entity_id', label: 'Entidade' },
+              { key: 'actor_name', label: 'Ator', render: (row) => row.actor_name || '-' },
+              { key: 'order_ref', label: 'Pedido/NF' },
+              { key: 'batch_ref', label: 'Lote' },
+              {
+                key: 'payload',
+                label: 'Payload',
+                render: (row) => (
+                  <button type="button" className="table-action-button" onClick={() => setDrawerPayload(row.payload || {})} title="Ver payload completo">
+                    Ver payload
+                  </button>
+                ),
+              },
+              {
+                key: 'created_at',
+                label: 'Quando',
+                render: (row) => formatDateTime(row.created_at),
+              },
+            ]}
+            emptyMessage="Sem eventos de auditoria registrados."
+          />
+        )}
       </PanelSection>
 
       <PanelSection

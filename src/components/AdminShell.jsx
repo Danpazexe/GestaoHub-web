@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { navGroups, navItems } from '../config/navigation';
 import { AppIcon } from './AppIcon';
+import { GlobalSearch } from './GlobalSearch';
 
 export const AdminShell = ({
   profile,
@@ -10,6 +11,7 @@ export const AdminShell = ({
   onRefresh,
   onSignOut,
   lastRefresh,
+  searchData,
   children,
 }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -154,6 +156,9 @@ export const AdminShell = ({
               <span className="topbar-eyebrow">Operação em tempo real</span>
               <h1 className="topbar-title">Painel administrativo</h1>
               <p className="topbar-subtitle">{activeItem.label}</p>
+            </div>
+            <div className="topbar-search">
+              <GlobalSearch data={searchData} onNavigate={onSelectView} />
             </div>
             <div className="topbar-right">
               <button

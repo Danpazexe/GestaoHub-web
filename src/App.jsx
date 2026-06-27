@@ -486,6 +486,7 @@ function App() {
         onRefresh={loadDashboard}
         onSignOut={signOut}
         lastRefresh={dataState.lastRefresh || '-'}
+        searchData={dataState}
       >
         {dataState.error ? <div className="feedback error">{dataState.error}</div> : null}
         {dataState.loading ? <div className="inline-loading">Atualizando dados...</div> : null}

@@ -482,6 +482,56 @@ button { cursor: pointer; }
 }
 .topbar-subtitle { font-size: 12px; color: var(--muted); margin-top: 1px; font-weight: 500; }
 .topbar-right { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+
+/* ─── busca global (briefing §10) ─────────────────────────── */
+.topbar-search { flex: 1 1 280px; max-width: 460px; display: flex; }
+.global-search { position: relative; width: 100%; }
+.global-search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--muted-2); pointer-events: none; display: inline-flex;
+}
+.global-search-input {
+  width: 100%; min-height: 40px; padding: 0 40px 0 36px;
+  border-radius: var(--r-md); border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--ink); font-size: 13px;
+  outline: none; transition: border-color var(--dur-2), box-shadow var(--dur-2);
+}
+.global-search-input:focus { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(252, 150, 78, 0.16); background: var(--surface); }
+.global-search-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; border: none; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--muted); font-size: 17px; line-height: 1;
+}
+.global-search-clear:hover { background: var(--neutral-soft); color: var(--ink); }
+.global-search-kbd {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  padding: 1px 7px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--muted-2); font-size: 11px; font-weight: 700;
+}
+.global-search-panel {
+  position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 40;
+  max-height: 460px; overflow-y: auto; padding: 8px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-xl);
+}
+.global-search-empty { padding: 18px 12px; text-align: center; color: var(--muted); font-size: 13px; }
+.global-search-group { margin-bottom: 6px; }
+.global-search-group-head {
+  padding: 6px 10px 4px; font-size: 10px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent);
+}
+.global-search-item {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
+  padding: 8px 10px; border: none; border-radius: var(--r-sm); cursor: pointer;
+  background: transparent; transition: background var(--dur-1);
+}
+.global-search-item:hover { background: var(--row-accent-soft); }
+.global-search-item-label { font-size: 13px; font-weight: 600; color: var(--ink); }
+.global-search-item-sub { font-size: 11px; color: var(--muted); }
+
+@media (max-width: 900px) {
+  .topbar-search { order: 3; flex-basis: 100%; max-width: none; }
+}
 .topbar-refresh-note {
   font-size: 11px; color: var(--muted); font-weight: 500;
   padding: 8px 13px; border-radius: 999px;

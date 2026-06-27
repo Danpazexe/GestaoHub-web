@@ -49,10 +49,18 @@ export const classifyValidade = (diasrestantes, config = loadFaixasConfig()) => 
   return { key: 'seguro', label: `Seguro (${dias}d)`, tone: 'success', dias };
 };
 
+// Caminho/URL bruto da imagem do produto. O app guarda a imagem no bucket
+// privado product-images (coluna image_path); a view admin precisa expor essa
+// coluna (ver docs/migrations/0003). Pode também ser uma URL pública direta.
+export const readImage = (row = {}) =>
+  row.image_path || row.image_url || row.imagem || row.photo_url || row.foto_url || null;
+
 // Detecta se os registros publicam imagem (para habilitar cards/filtros de imagem
 // sem gerar falso positivo quando o campo nem existe no schema).
-export const readImage = (row = {}) => row.image_url || row.imagem || row.photo_url || row.foto_url || null;
 export const hasImageField = (rows = []) => rows.some((r) => readImage(r));
+
+// True quando o valor já é uma URL pronta (não precisa de URL assinada).
+export const isDirectImageUrl = (value) => /^(https?:|data:|blob:)/.test(String(value || ''));
 
 // Status de tratativa para legibilidade.
 export const isOpenValidade = (row = {}) => row.status !== 'treated' && row.status !== 'resolved';

@@ -3,6 +3,8 @@
 //  - Qualidade de cadastro (briefing §21)
 //  - Ranking de produtos problemáticos (briefing §23)
 
+import { readImage } from './validadeFaixas';
+
 const normName = (value) => String(value || '').toUpperCase().replace(/\s+/g, ' ').trim();
 const latest = (a, b) => {
   const ta = a ? new Date(a).getTime() : 0;
@@ -78,7 +80,7 @@ const QUALITY_CHECKS = [
   { key: 'lote', label: 'Sem lote', has: (r) => Boolean(String(r.lote || '').trim()) },
   { key: 'quantidade', label: 'Sem quantidade', has: (r) => Number(r.quantidade) > 0 },
   { key: 'validade', label: 'Sem validade', has: (r) => r.diasrestantes !== null && r.diasrestantes !== undefined && r.diasrestantes !== '' },
-  { key: 'imagem', label: 'Sem imagem', has: (r) => Boolean(r.image_url || r.imagem || r.photo_url) },
+  { key: 'imagem', label: 'Sem imagem', has: (r) => Boolean(readImage(r)) },
   { key: 'setor', label: 'Sem setor', has: (r) => Boolean(r.sector || r.setor || r.area) },
 ];
 
@@ -154,7 +156,7 @@ export const buildProductRanking = ({ validade = [], avarias = [], conferenciaDi
     const e = ensure(row.codprod, row.descricao);
     if (!e) continue;
     e.vencimentos += 1;
-    if (!(row.image_url || row.imagem)) e.semImagem += 1;
+    if (!readImage(row)) e.semImagem += 1;
     e.lastAt = latest(e.lastAt, row.updated_at);
     if (e.description === '—' && row.descricao) e.description = row.descricao;
   }

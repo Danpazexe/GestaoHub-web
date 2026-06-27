@@ -4,7 +4,6 @@ export const PanelSection = ({ title, subtitle, actions, kicker, children }) => 
       <div className="section-copy">
         {kicker ? <span className="section-kicker">{kicker}</span> : null}
         <div className="section-title-row">
-          <span className="section-bar" aria-hidden="true" />
           <h2>{title}</h2>
         </div>
         {subtitle ? <p>{subtitle}</p> : null}

@@ -18,11 +18,21 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .empty-state {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 140px; border-radius: var(--r-lg);
-  background: var(--surface-2); border: 1px dashed var(--line);
-  color: var(--muted); font-size: 0.86rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 6px; min-height: 180px; padding: 32px 20px;
+  border-radius: var(--r-lg); background: var(--surface-2);
+  border: 1px solid var(--line-2); color: var(--muted);
 }
+.empty-state.compact-empty { min-height: 96px; padding: 20px; }
+.empty-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; border-radius: 14px; margin-bottom: 4px;
+  background: var(--accent-3); color: var(--accent);
+}
+.empty-state.compact-empty .empty-icon { width: 36px; height: 36px; }
+.empty-title { font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--ink-2); }
+.empty-desc { margin: 0; font-size: 0.84rem; color: var(--muted); max-width: 380px; }
+.empty-action { margin-top: 8px; }
 
 /* ─── feedback ────────────────────────────────────────────── */
 .feedback {

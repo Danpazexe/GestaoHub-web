@@ -2,13 +2,17 @@
 --
 -- As views conferencia_fila_entrada / conferencia_fila_saida (0006) eram enxutas
 -- e não traziam campos que a tela de Conferência usa (resultado da conferência,
--- quantidade conferida, contagem de divergência, pendência). Esta migração
--- recria as duas com esses campos. Idempotente (create or replace),
--- security_invoker. Rodar DEPOIS de 0006.
+-- quantidade conferida, contagem de divergência, pendência).
+--
+-- Usa DROP + CREATE (não CREATE OR REPLACE) porque estamos mudando a ORDEM das
+-- colunas — o create-or-replace só permite APENDAR colunas no fim, e daria
+-- "cannot change name of view column". Nada depende dessas views, então o drop
+-- é seguro. Idempotente (drop if exists), security_invoker. Rodar DEPOIS de 0006.
 --
 -- Como aplicar: Supabase Dashboard > SQL Editor.
 
-create or replace view public.conferencia_fila_entrada with (security_invoker = true) as
+drop view if exists public.conferencia_fila_entrada;
+create view public.conferencia_fila_entrada with (security_invoker = true) as
 select
   id                      as id,
   invoice_number          as numero_nf,
@@ -27,7 +31,8 @@ select
   created_at              as criado_em
 from public.admin_conferencia_bonus_queue_view;
 
-create or replace view public.conferencia_fila_saida with (security_invoker = true) as
+drop view if exists public.conferencia_fila_saida;
+create view public.conferencia_fila_saida with (security_invoker = true) as
 select
   id                      as id,
   order_code              as codigo_pedido,

@@ -1,13 +1,13 @@
 -- ============================================================================
 -- GestãoHub — APLICAR TUDO (consolidado: 0001, 0002, 0003, 0004, 0006, 0007)
 -- ============================================================================
--- Arquivo único, idempotente. Cole inteiro no Supabase Dashboard > SQL Editor.
--- NÃO precisa configurar "Exposed schemas": as views em português ficam no
--- schema public (0006/0007), já visíveis ao PostgREST.
+-- Arquivo único, idempotente (pode reaplicar sem erro). Cole inteiro no
+-- Supabase Dashboard > SQL Editor. NÃO precisa configurar "Exposed schemas":
+-- as views em português ficam no schema public.
 --
 -- Ordem: localização (0001) → aprovação (0002) → imagens/validade (0003) →
--- views pt alias em schema admin (0004) → views pt com COLUNAS no public (0006)
--- → completa as filas de conferência em pt (0007).
+-- views pt alias em schema admin (0004) → views pt com COLUNAS no public (0006,
+-- já com as filas de conferência completas) → 0007 (idempotência das filas).
 -- ============================================================================
 
 
@@ -510,37 +510,49 @@ select
   updated_at   as atualizado_em
 from public.admin_conferencia_divergencias_view;
 
-create or replace view public.conferencia_fila_entrada with (security_invoker = true) as
+-- DROP + CREATE (não create-or-replace): estas trazem campos que a tela usa e
+-- numa ordem própria; o create-or-replace só permite apendar no fim.
+drop view if exists public.conferencia_fila_entrada;
+create view public.conferencia_fila_entrada with (security_invoker = true) as
 select
-  id                 as id,
-  invoice_number     as numero_nf,
-  supplier_name      as nome_fornecedor,
-  item_count         as qtd_itens,
-  total_quantity     as quantidade_total,
-  status             as situacao,
-  assigned_user_id   as responsavel_id,
-  assigned_user_name as responsavel_nome,
-  started_at         as iniciada_em,
-  finished_at        as finalizada_em,
-  created_at         as criado_em
+  id                      as id,
+  invoice_number          as numero_nf,
+  supplier_name           as nome_fornecedor,
+  item_count              as qtd_itens,
+  total_quantity          as quantidade_total,
+  checked_quantity        as quantidade_conferida,
+  status                  as situacao,
+  assigned_user_id        as responsavel_id,
+  assigned_user_name      as responsavel_nome,
+  started_at              as iniciada_em,
+  finished_at             as finalizada_em,
+  conference_result       as resultado_conferencia,
+  divergence_count        as qtd_divergencias,
+  finalized_with_pendency as finalizada_com_pendencia,
+  created_at              as criado_em
 from public.admin_conferencia_bonus_queue_view;
 
-create or replace view public.conferencia_fila_saida with (security_invoker = true) as
+drop view if exists public.conferencia_fila_saida;
+create view public.conferencia_fila_saida with (security_invoker = true) as
 select
-  id                 as id,
-  order_code         as codigo_pedido,
-  customer_name      as nome_cliente,
-  customer_code      as codigo_cliente,
-  route_code         as codigo_rota,
-  carga_code         as codigo_carga,
-  item_count         as qtd_itens,
-  total_quantity     as quantidade_total,
-  status             as situacao,
-  assigned_user_id   as responsavel_id,
-  assigned_user_name as responsavel_nome,
-  started_at         as iniciada_em,
-  finished_at        as finalizada_em,
-  created_at         as criado_em
+  id                      as id,
+  order_code              as codigo_pedido,
+  customer_name           as nome_cliente,
+  customer_code           as codigo_cliente,
+  route_code              as codigo_rota,
+  carga_code              as codigo_carga,
+  item_count              as qtd_itens,
+  total_quantity          as quantidade_total,
+  checked_quantity        as quantidade_conferida,
+  status                  as situacao,
+  assigned_user_id        as responsavel_id,
+  assigned_user_name      as responsavel_nome,
+  started_at              as iniciada_em,
+  finished_at             as finalizada_em,
+  conference_result       as resultado_conferencia,
+  divergence_count        as qtd_divergencias,
+  finalized_with_pendency as finalizada_com_pendencia,
+  created_at              as criado_em
 from public.admin_conferencia_saida_bonus_queue_view;
 
 -- ── Sistema (resumo) ─────────────────────────────────────────────────────────
@@ -599,13 +611,17 @@ to authenticated, anon;
 --
 -- As views conferencia_fila_entrada / conferencia_fila_saida (0006) eram enxutas
 -- e não traziam campos que a tela de Conferência usa (resultado da conferência,
--- quantidade conferida, contagem de divergência, pendência). Esta migração
--- recria as duas com esses campos. Idempotente (create or replace),
--- security_invoker. Rodar DEPOIS de 0006.
+-- quantidade conferida, contagem de divergência, pendência).
+--
+-- Usa DROP + CREATE (não CREATE OR REPLACE) porque estamos mudando a ORDEM das
+-- colunas — o create-or-replace só permite APENDAR colunas no fim, e daria
+-- "cannot change name of view column". Nada depende dessas views, então o drop
+-- é seguro. Idempotente (drop if exists), security_invoker. Rodar DEPOIS de 0006.
 --
 -- Como aplicar: Supabase Dashboard > SQL Editor.
 
-create or replace view public.conferencia_fila_entrada with (security_invoker = true) as
+drop view if exists public.conferencia_fila_entrada;
+create view public.conferencia_fila_entrada with (security_invoker = true) as
 select
   id                      as id,
   invoice_number          as numero_nf,
@@ -624,7 +640,8 @@ select
   created_at              as criado_em
 from public.admin_conferencia_bonus_queue_view;
 
-create or replace view public.conferencia_fila_saida with (security_invoker = true) as
+drop view if exists public.conferencia_fila_saida;
+create view public.conferencia_fila_saida with (security_invoker = true) as
 select
   id                      as id,
   order_code              as codigo_pedido,

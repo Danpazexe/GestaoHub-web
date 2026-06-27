@@ -27,6 +27,7 @@ const AdminCenterView = lazy(() => import('./features/admin/AdminCenterView').th
 const ConfiguracoesView = lazy(() => import('./features/configuracoes/ConfiguracoesView').then((m) => ({ default: m.ConfiguracoesView })));
 const FechamentoView = lazy(() => import('./features/fechamento/FechamentoView').then((m) => ({ default: m.FechamentoView })));
 const LogsView = lazy(() => import('./features/logs/LogsView').then((m) => ({ default: m.LogsView })));
+const ImportacaoView = lazy(() => import('./features/importacao/ImportacaoView').then((m) => ({ default: m.ImportacaoView })));
 const MapaView = lazy(() => import('./features/mapa/MapaView').then((m) => ({ default: m.MapaView })));
 const RelatoriosView = lazy(() => import('./features/relatorios/RelatoriosView').then((m) => ({ default: m.RelatoriosView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
@@ -511,6 +512,7 @@ function App() {
     qualidade: <QualidadeView validade={dataState.validade} />,
     configuracoes: <ConfiguracoesView />,
     logs: <LogsView />,
+    importacao: <ImportacaoView profile={profile} />,
     relatorios: (
       <RelatoriosView
         validade={dataState.validade}

@@ -5,11 +5,13 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { Drawer } from '../../components/Drawer';
 import { SelectFilter } from '../../components/SelectFilter';
 import { SearchInput } from '../../components/SearchInput';
+import { BeforeAfter } from '../../components/BeforeAfter';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useTableFilter } from '../../hooks/useTableFilter';
 import { adminApi } from '../../services/adminApi';
 import { toast } from '../../lib/toast';
 import { exportCsv } from '../../lib/csv';
+import { hasReason, VALIDATION_MESSAGES } from '../../lib/validations';
 import { formatDateTime, truncate } from '../../lib/format';
 
 // Vocabulário canônico de tratativa de validade — MESMOS códigos do app (EN) que o
@@ -60,8 +62,16 @@ export const ValidadeView = ({ validade, onRefresh }) => {
     [validade],
   );
 
+  // Trava (§25): perda/vencido exige motivo registrado.
+  const reasonRequired = treatmentState.treatment_type === 'expired';
+  const reasonOk = !reasonRequired || hasReason(treatmentState.observacao);
+
   const applyTreatment = async () => {
     if (!treatmentState.row) return;
+    if (reasonRequired && !reasonOk) {
+      toast.error(VALIDATION_MESSAGES.reason);
+      return;
+    }
     const loadingId = toast.loading('Aplicando tratativa...');
     setTreatmentState((current) => ({ ...current, loading: true }));
     try {
@@ -130,10 +140,29 @@ export const ValidadeView = ({ validade, onRefresh }) => {
             </select>
           </label>
           <label className="builder-field">
-            <span>Observação</span>
-            <textarea value={treatmentState.observacao} onChange={(event) => setTreatmentState((current) => ({ ...current, observacao: event.target.value.slice(0, 300) }))} rows={4} placeholder="Observação opcional" />
+            <span>Observação{reasonRequired ? ' (obrigatória)' : ''}</span>
+            <textarea value={treatmentState.observacao} onChange={(event) => setTreatmentState((current) => ({ ...current, observacao: event.target.value.slice(0, 300) }))} rows={4} placeholder={reasonRequired ? 'Descreva o motivo da perda/baixa' : 'Observação opcional'} />
           </label>
-          <button type="button" className="primary-button button-inline" onClick={applyTreatment} disabled={treatmentState.loading} title="Aplicar tratativa">
+
+          {treatmentState.row ? (
+            <BeforeAfter
+              before={[
+                { label: 'Status', value: treatmentState.row.status },
+                { label: 'Tratativa', value: treatmentLabel(treatmentState.row.treatment_type) },
+              ]}
+              after={[
+                { label: 'Status', value: 'treated' },
+                { label: 'Tratativa', value: treatmentLabel(treatmentState.treatment_type) },
+              ]}
+              reason={treatmentState.observacao || null}
+            />
+          ) : null}
+
+          {reasonRequired && !reasonOk ? (
+            <div className="feedback warning">{VALIDATION_MESSAGES.reason}</div>
+          ) : null}
+
+          <button type="button" className="primary-button button-inline" onClick={applyTreatment} disabled={treatmentState.loading || !reasonOk} title="Aplicar tratativa">
             {treatmentState.loading ? 'Salvando...' : 'Aplicar tratativa'}
           </button>
         </div>

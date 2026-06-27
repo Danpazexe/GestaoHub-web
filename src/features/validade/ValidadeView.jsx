@@ -4,6 +4,7 @@ import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { SeverityBadge } from '../../components/SeverityBadge';
 import { FilterChips } from '../../components/FilterChips';
+import { RowActions } from '../../components/RowActions';
 import { Drawer } from '../../components/Drawer';
 import { SelectFilter } from '../../components/SelectFilter';
 import { SearchInput } from '../../components/SearchInput';
@@ -336,10 +337,10 @@ export const ValidadeView = ({ validade, onRefresh }) => {
               {
                 key: 'actions', label: 'Ações',
                 render: (row) => (
-                  <div className="table-actions-row">
-                    <button type="button" className="table-action-button" onClick={() => openTreatment(row)}>Tratar</button>
-                    <button type="button" className="table-action-button" onClick={() => resolveItem(row)}>Resolver</button>
-                  </div>
+                  <RowActions actions={[
+                    { label: 'Tratar', onClick: () => openTreatment(row) },
+                    { label: 'Marcar como resolvido', onClick: () => resolveItem(row) },
+                  ]} />
                 ),
               },
             ]}

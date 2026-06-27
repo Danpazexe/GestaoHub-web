@@ -24,6 +24,7 @@ const IndicadoresView = lazy(() => import('./features/indicadores/IndicadoresVie
 const TvView = lazy(() => import('./features/tv/TvView').then((m) => ({ default: m.TvView })));
 const AdminCenterView = lazy(() => import('./features/admin/AdminCenterView').then((m) => ({ default: m.AdminCenterView })));
 const MapaView = lazy(() => import('./features/mapa/MapaView').then((m) => ({ default: m.MapaView })));
+const RelatoriosView = lazy(() => import('./features/relatorios/RelatoriosView').then((m) => ({ default: m.RelatoriosView })));
 const UsersView = lazy(() => import('./features/users/UsersView').then((m) => ({ default: m.UsersView })));
 const TratativasView = lazy(() => import('./features/tratativas/TratativasView').then((m) => ({ default: m.TratativasView })));
 const RecebimentoView = lazy(() => import('./features/recebimento/RecebimentoView').then((m) => ({ default: m.RecebimentoView })));
@@ -492,6 +493,16 @@ function App() {
       />
     ),
     qualidade: <QualidadeView validade={dataState.validade} />,
+    relatorios: (
+      <RelatoriosView
+        validade={dataState.validade}
+        purchaseOrders={dataState.purchaseOrders}
+        conferenciaDivergencias={dataState.conferenciaDivergencias}
+        conferenciaBonusQueue={dataState.conferenciaBonusQueue}
+        conferenciaSaidaBonusQueue={dataState.conferenciaSaidaBonusQueue}
+        events={dataState.events}
+      />
+    ),
     admin: (
       <AdminCenterView
         validade={dataState.validade}

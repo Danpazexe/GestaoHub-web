@@ -777,6 +777,22 @@ button { cursor: pointer; }
 
 @media (max-width: 1100px) { .validade-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .validade-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ─── relatórios (briefing §17) ───────────────────────────── */
+.report-snapshot-note { font-size: 12px; color: var(--muted); font-style: italic; align-self: center; }
+.report-print-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.report-print-head h3 { margin: 0; font-family: var(--font-display); font-size: 16px; color: var(--ink); }
+.report-print-head span { font-size: 12px; color: var(--muted); }
+
+/* ─── impressão (briefing §17 — PDF via diálogo do navegador) ── */
+@media print {
+  .sidebar, .sidebar-overlay, .mobile-topbar, .topbar, .no-print { display: none !important; }
+  .app-shell, .main-shell, .main-shell-inner, .dashboard-content { display: block !important; margin: 0 !important; padding: 0 !important; }
+  body { background: #fff !important; }
+  .panel-section { box-shadow: none !important; border: none !important; }
+  .data-table { font-size: 11px; }
+  .table-pagination { display: none !important; }
+}
 .topbar-refresh-note {
   font-size: 11px; color: var(--muted); font-weight: 500;
   padding: 8px 13px; border-radius: 999px;

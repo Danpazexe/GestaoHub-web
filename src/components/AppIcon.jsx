@@ -112,6 +112,25 @@ const icons = {
       <path d="M15 6v14" />
     </>
   ),
+  relatorios: (
+    <>
+      <path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+      <path d="M14 3v5h5" />
+      <path d="M8 13h8M8 17h5" />
+    </>
+  ),
+  notificacoes: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </>
+  ),
+  fechamento: (
+    <>
+      <path d="M9 11l3 3 8-8" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </>
+  ),
 };
 
 export const AppIcon = ({ name, size = 18, className = '' }) => (

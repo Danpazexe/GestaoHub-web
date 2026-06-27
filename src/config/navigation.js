@@ -25,6 +25,7 @@ export const navGroups = [
     key: 'intelligence',
     label: 'Inteligência',
     items: [
+      { key: 'relatorios', label: 'Relatórios', shortLabel: 'RL', icon: 'relatorios' },
       { key: 'fornecedores', label: 'Fornecedores', shortLabel: 'FO', icon: 'fornecedores' },
       { key: 'qualidade', label: 'Qualidade de cadastro', shortLabel: 'QC', icon: 'qualidade' },
       { key: 'ranking', label: 'Ranking de produtos', shortLabel: 'RK', icon: 'ranking' },

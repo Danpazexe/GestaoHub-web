@@ -28,12 +28,14 @@
   --danger:    #ef4444;
   --warning:   #f59e0b;
   --info:      #0ea5e9;
+  --monitor:   #eab308;   /* amarelo — gravidade "Monitorar" (briefing §15) */
 
   /* soft-tint para badges/feedback/linhas (tokenizado, não hardcoded) */
   --success-soft: rgba(16, 185, 129, 0.12);  --success-text: #047857;
   --warning-soft: rgba(245, 158, 11, 0.14);  --warning-text: #b45309;
   --danger-soft:  rgba(239, 68, 68, 0.12);   --danger-text:  #b91c1c;
   --info-soft:    rgba(14, 165, 233, 0.12);  --info-text:    #0369a1;
+  --monitor-soft: rgba(234, 179, 8, 0.16);   --monitor-text: #a16207;
   --neutral-soft: rgba(51, 65, 85, 0.07);
 
   /* tints de linha de tabela (estados) */
@@ -98,12 +100,14 @@
   --danger:  #f87171;
   --warning: #fbbf24;
   --info:    #38bdf8;
+  --monitor: #facc15;
 
   /* soft-tint re-tunado para o dark (alpha maior, texto mais claro) */
   --success-soft: rgba(52, 211, 153, 0.16);  --success-text: #6ee7b7;
   --warning-soft: rgba(251, 191, 36, 0.18);  --warning-text: #fcd34d;
   --danger-soft:  rgba(248, 113, 113, 0.18); --danger-text:  #fca5a5;
   --info-soft:    rgba(56, 189, 248, 0.16);  --info-text:    #7dd3fc;
+  --monitor-soft: rgba(250, 204, 21, 0.18);  --monitor-text: #fde047;
   --neutral-soft: rgba(255, 255, 255, 0.06);
 
   --row-accent-soft:  rgba(252, 150, 78, 0.10);
@@ -611,6 +615,31 @@ button { cursor: pointer; }
 }
 .status-badge.is-muted::before, .status-badge.is-idle::before,
 .status-badge.is-offline::before, .status-badge.is-default::before { background: var(--muted-2); }
+
+/* ─── gravidade padronizada (briefing §15) ────────────────── */
+.status-badge.sev-tone-danger  { background: var(--danger-soft);  color: var(--danger-text); }
+.status-badge.sev-tone-danger::before  { background: var(--danger); }
+.status-badge.sev-tone-warning { background: var(--warning-soft); color: var(--warning-text); }
+.status-badge.sev-tone-warning::before { background: var(--warning); }
+.status-badge.sev-tone-monitor { background: var(--monitor-soft); color: var(--monitor-text); }
+.status-badge.sev-tone-monitor::before { background: var(--monitor); }
+.status-badge.sev-tone-info    { background: var(--info-soft);    color: var(--info-text); }
+.status-badge.sev-tone-info::before    { background: var(--info); }
+.status-badge.sev-tone-success { background: var(--success-soft); color: var(--success-text); }
+.status-badge.sev-tone-success::before { background: var(--success); }
+
+/* faixa lateral de gravidade para cards/linhas de pendência */
+.sev-stripe-danger  { box-shadow: inset 3px 0 0 var(--danger); }
+.sev-stripe-warning { box-shadow: inset 3px 0 0 var(--warning); }
+.sev-stripe-monitor { box-shadow: inset 3px 0 0 var(--monitor); }
+.sev-stripe-info    { box-shadow: inset 3px 0 0 var(--info); }
+.sev-stripe-success { box-shadow: inset 3px 0 0 var(--success); }
+.sev-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.sev-dot.sev-tone-danger  { background: var(--danger); }
+.sev-dot.sev-tone-warning { background: var(--warning); }
+.sev-dot.sev-tone-monitor { background: var(--monitor); }
+.sev-dot.sev-tone-info    { background: var(--info); }
+.sev-dot.sev-tone-success { background: var(--success); }
 
 /* ─── upload / xml ────────────────────────────────────────── */
 .upload-field {

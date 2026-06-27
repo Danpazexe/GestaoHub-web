@@ -30,6 +30,13 @@ export const navGroups = [
       { key: 'ranking', label: 'Ranking de produtos', shortLabel: 'RK', icon: 'ranking' },
     ],
   },
+  {
+    key: 'system',
+    label: 'Sistema',
+    items: [
+      { key: 'admin', label: 'Administração', shortLabel: 'AD', icon: 'admin' },
+    ],
+  },
 ];
 
 export const navItems = navGroups.flatMap((group) => group.items);

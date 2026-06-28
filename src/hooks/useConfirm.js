@@ -1,4 +1,4 @@
-import { createElement, useMemo, useState } from 'react';
+import { createElement, useState } from 'react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 const initialState = {
@@ -26,7 +26,8 @@ export const useConfirm = () => {
 
   // Com requireReason, resolve a STRING do motivo (truthy); senão resolve true.
   // Cancelar resolve false. Callers podem fazer `const r = await confirm(...)`.
-  const ConfirmModalNode = useMemo(() => createElement(ConfirmModal, {
+  // Sem useMemo: createElement é barato e o elemento depende de close (instável).
+  const ConfirmModalNode = createElement(ConfirmModal, {
     open: state.open,
     title: state.config?.title || 'Confirmar ação',
     description: state.config?.description || '',
@@ -39,7 +40,7 @@ export const useConfirm = () => {
     onReasonChange: setReason,
     onConfirm: () => close(requireReason ? reason.trim() : true),
     onCancel: () => close(false),
-  }), [state, reason, requireReason]);
+  });
 
   return { confirm, ConfirmModalNode };
 };

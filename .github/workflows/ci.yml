@@ -21,10 +21,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: ⬇️ Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: ⚙️ Configurar Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -65,10 +65,10 @@ jobs:
     timeout-minutes: 6
     steps:
       - name: ⬇️ Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: ⚙️ Configurar Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm

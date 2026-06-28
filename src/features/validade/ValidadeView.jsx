@@ -60,7 +60,9 @@ export const ValidadeView = ({ validade, onRefresh }) => {
     loading: false,
   });
 
-  const rows = validade || [];
+  // useMemo estabiliza a referência (validade || [] criaria um novo array a cada
+  // render quando vazio, invalidando os memos/efeitos abaixo).
+  const rows = useMemo(() => validade || [], [validade]);
   const imageTrackable = useMemo(() => hasImageField(rows), [rows]);
   // Faixas configuráveis (Supabase). Começa do cache e atualiza após o fetch.
   const [faixasConfig, setFaixasConfig] = useState(() => loadFaixasConfig());

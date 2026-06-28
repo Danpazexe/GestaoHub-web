@@ -19,6 +19,11 @@ jobs:
     name: 🔍 Qualidade
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Expõe o resultado de cada etapa para o job de notificação.
+    outputs:
+      lint: ${{ steps.lint.outcome }}
+      test: ${{ steps.test.outcome }}
+      build: ${{ steps.build.outcome }}
     steps:
       - name: ⬇️ Checkout do código
         uses: actions/checkout@v5
@@ -91,16 +96,46 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      # Envia o status do pipeline pro Telegram (gratuito e oficial).
-      # Segredos do repo: TELEGRAM_TO (teu chat_id) e TELEGRAM_BOT_TOKEN.
+      # Monta uma mensagem rica (HTML) com o resultado de cada etapa e envia
+      # ao Telegram via API. Segredos: TELEGRAM_TO e TELEGRAM_BOT_TOKEN.
       - name: 📲 Enviar status para o Telegram
-        uses: appleboy/telegram-action@v1.0.1
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          disable_web_page_preview: true
-          message: |
-            🚦 GestãoHub-web — ${{ needs.quality.result == 'success' && '✅ passou' || '❌ falhou' }}
-            🌿 ${{ github.ref_name }} · 👤 ${{ github.actor }}
-            📝 ${{ github.event.head_commit.message || github.event.pull_request.title }}
-            🔗 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          QUALITY: ${{ needs.quality.result }}
+          OUT_LINT: ${{ needs.quality.outputs.lint }}
+          OUT_TEST: ${{ needs.quality.outputs.test }}
+          OUT_BUILD: ${{ needs.quality.outputs.build }}
+          AUDIT: ${{ needs.audit.result }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message || github.event.pull_request.title }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          icon() { case "$1" in
+            success) printf '✅';; failure) printf '❌';;
+            cancelled) printf '🚫';; skipped|"") printf '⏭️';; *) printf '❔';;
+          esac; }
+          esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
+          if [ "$QUALITY" = "success" ]; then HEAD="✅ CI passou"; else HEAD="❌ CI falhou"; fi
+          COMMIT_FIRST=${COMMIT_MSG%%$'\n'*}
+
+          MSG=$(printf '%s\n' \
+            "🚦 <b>GestãoHub-web</b> · <b>${HEAD}</b>" \
+            "" \
+            "🧹 Lint $(icon "$OUT_LINT")   🧪 Testes $(icon "$OUT_TEST")" \
+            "🏗️ Build $(icon "$OUT_BUILD")   🔒 Audit $(icon "$AUDIT")" \
+            "" \
+            "🌿 <code>$(esc "$BRANCH")</code> · 👤 $(esc "$ACTOR")" \
+            "📝 <code>${SHA:0:7}</code> $(esc "$COMMIT_FIRST")" \
+            "" \
+            "🔗 <a href=\"${RUN_URL}\">Ver execução no GitHub</a>")
+
+          PAYLOAD=$(jq -n --arg chat "$TELEGRAM_TO" --arg text "$MSG" \
+            '{chat_id:$chat, text:$text, parse_mode:"HTML", disable_web_page_preview:true}')
+          RESP=$(curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H 'Content-Type: application/json' -d "$PAYLOAD")
+          echo "Resposta do Telegram: $RESP"
+          echo "$RESP" | jq -e '.ok == true' > /dev/null

@@ -1,0 +1,54 @@
+name: 📲 Notificar Deploy (Vercel)
+
+# A Vercel publica via integração com o GitHub e emite eventos de
+# "deployment_status". Aqui apenas escutamos e avisamos no Telegram.
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  notificar:
+    name: 📲 Notificar deploy
+    # Só avisa estados finais (ignora pending / in_progress / queued).
+    if: >-
+      ${{ github.event.deployment_status.state == 'success'
+          || github.event.deployment_status.state == 'failure'
+          || github.event.deployment_status.state == 'error' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: 📲 Enviar status do deploy para o Telegram
+        env:
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          STATE: ${{ github.event.deployment_status.state }}
+          ENVIRONMENT: ${{ github.event.deployment_status.environment }}
+          TARGET_URL: ${{ github.event.deployment_status.environment_url }}
+          SHA: ${{ github.event.deployment.sha }}
+        run: |
+          esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+          case "$STATE" in
+            success) HEAD="✅ Deploy publicado";;
+            failure|error) HEAD="❌ Deploy falhou";;
+            *) HEAD="ℹ️ Deploy: $STATE";;
+          esac
+
+          LINES=(
+            "▲ <b>Vercel · GestãoHub-web</b> · <b>${HEAD}</b>"
+            ""
+            "🌎 Ambiente: $(esc "$ENVIRONMENT")"
+            "🔖 Commit: <code>${SHA:0:7}</code>"
+          )
+          if [ -n "$TARGET_URL" ]; then
+            LINES+=("🔗 <a href=\"$(esc "$TARGET_URL")\">Abrir site</a>")
+          fi
+          MSG=$(printf '%s\n' "${LINES[@]}")
+
+          PAYLOAD=$(jq -n --arg chat "$TELEGRAM_TO" --arg text "$MSG" \
+            '{chat_id:$chat, text:$text, parse_mode:"HTML", disable_web_page_preview:true}')
+          RESP=$(curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H 'Content-Type: application/json' -d "$PAYLOAD")
+          echo "Resposta do Telegram: $RESP"
+          echo "$RESP" | jq -e '.ok == true' > /dev/null

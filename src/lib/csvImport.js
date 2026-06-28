@@ -56,7 +56,6 @@ export const parseCsv = (text) => {
 // ── Validadores reutilizáveis ────────────────────────────────────────────────
 const required = (v) => String(v || '').trim().length > 0;
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim());
-const isNumber = (v) => v === '' || Number.isFinite(Number(v));
 const isInt = (v) => v === '' || (Number.isFinite(Number(v)) && Number.isInteger(Number(v)));
 
 // ── Tipos de importação ──────────────────────────────────────────────────────

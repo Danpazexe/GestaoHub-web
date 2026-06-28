@@ -5,6 +5,7 @@
 // Defaults do briefing: crítico 7d, atenção 15d, monitorar 30d.
 
 import { adminApi } from '../services/adminApi';
+import { toNumber } from './numbers';
 
 const SETTING_KEY = 'faixas_validade';
 
@@ -13,9 +14,9 @@ export const DEFAULT_FAIXAS = { criticoDias: 7, atencaoDias: 15, monitorarDias: 
 let _cache = { ...DEFAULT_FAIXAS };
 
 const normalize = (saved = {}) => ({
-  criticoDias: Number(saved.criticoDias) || DEFAULT_FAIXAS.criticoDias,
-  atencaoDias: Number(saved.atencaoDias) || DEFAULT_FAIXAS.atencaoDias,
-  monitorarDias: Number(saved.monitorarDias) || DEFAULT_FAIXAS.monitorarDias,
+  criticoDias: toNumber(saved.criticoDias, DEFAULT_FAIXAS.criticoDias),
+  atencaoDias: toNumber(saved.atencaoDias, DEFAULT_FAIXAS.atencaoDias),
+  monitorarDias: toNumber(saved.monitorarDias, DEFAULT_FAIXAS.monitorarDias),
 });
 
 // Getter síncrono — devolve o cache em memória (defaults até hidratar).

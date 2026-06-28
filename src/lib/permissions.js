@@ -4,6 +4,8 @@
 // resolvida no servidor (RLS + RPC). Este módulo guarda apenas o catálogo e a
 // matriz padrão usada como fallback quando o banco ainda não foi migrado.
 
+import { structuredCloneSafe } from './clone';
+
 export const PERMISSIONS = [
   { key: 'can_view_dashboard', label: 'Ver dashboards' },
   { key: 'can_manage_users', label: 'Gerenciar usuários' },
@@ -44,7 +46,3 @@ export const DEFAULT_MATRIX = {
 // Fallback local (clone da matriz padrão) usado quando o banco ainda não tem as
 // tabelas de permissão (0010). A fonte de verdade é adminApi.getPermissionsMatrix().
 export const defaultMatrix = () => structuredCloneSafe(DEFAULT_MATRIX);
-
-function structuredCloneSafe(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}

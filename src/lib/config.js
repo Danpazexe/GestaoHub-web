@@ -4,6 +4,7 @@
 // Cache em memória + fetch async. As faixas de validade ficam em validadeFaixas.
 
 import { adminApi } from '../services/adminApi';
+import { structuredCloneSafe } from './clone';
 
 const SETTING_KEY = 'config_sistema';
 
@@ -47,7 +48,3 @@ export const saveConfig = async (config) => {
 // Converte texto (um item por linha) em lista limpa, e vice-versa.
 export const textToList = (text) => String(text || '').split('\n').map((s) => s.trim()).filter(Boolean);
 export const listToText = (list) => (Array.isArray(list) ? list.join('\n') : '');
-
-function structuredCloneSafe(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}

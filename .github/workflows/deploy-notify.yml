@@ -29,7 +29,7 @@ jobs:
           SHA: ${{ github.event.deployment.sha }}
           # Domínio público de acesso (produção). A URL única de cada deploy
           # cai na proteção/login da Vercel, então em produção usamos este.
-          PROD_URL: https://gestao-hub.vercel.app
+          PROD_URL: https://gestao-hub-web.vercel.app
         run: |
           esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
           case "$STATE" in

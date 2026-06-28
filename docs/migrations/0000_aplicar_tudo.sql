@@ -1,5 +1,5 @@
 -- ============================================================================
--- GestãoHub — APLICAR TUDO (consolidado: 0001-0004, 0006-0011)
+-- GestãoHub — APLICAR TUDO (consolidado: 0001-0004, 0006-0013)
 -- ============================================================================
 -- Arquivo único, idempotente (pode reaplicar). Cole no Supabase > SQL Editor.
 -- Não precisa configurar "Exposed schemas" (views pt ficam no public).
@@ -1249,3 +1249,214 @@ end;
 $$;
 
 grant execute on function public.definir_permissao_perfil(text, text, boolean, text) to authenticated;
+
+
+-- ╔════════════════════════════════════════════════════════════════════╗
+-- ║ BLOCO 0012_seguranca_quickwins
+-- ╚════════════════════════════════════════════════════════════════════╝
+-- =====================================================================
+-- 0012_seguranca_quickwins.sql — Quick wins de segurança + fundações p/ RLS
+-- ---------------------------------------------------------------------
+-- A1) resolver_permissoes_usuario: barra leitura de permissões de terceiros.
+-- C5) registrar_evento: valida/limita entrada (anti-poluição da auditoria).
+-- pode()/tem_perfil(): helpers usados pela RLS por permissão (0013).
+--
+-- Idempotente. Aplique no SQL Editor do Supabase. Requer 0009/0010.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- A1) resolver_permissoes_usuario com guarda de autorização
+-- ---------------------------------------------------------------------
+create or replace function public.resolver_permissoes_usuario(p_user uuid default auth.uid())
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  v_perfil_chave text;
+  v_is_admin     boolean;
+  v_perms        jsonb;
+begin
+  if p_user is null then
+    return jsonb_build_object('perfil', null, 'is_admin', false, 'permissoes', '{}'::jsonb);
+  end if;
+
+  -- Só o próprio usuário ou um admin pode resolver permissões de alguém.
+  if p_user <> auth.uid() and not public.is_admin_user() then
+    raise exception 'Sem permissão para consultar permissões de outro usuário';
+  end if;
+
+  select exists (select 1 from public.admin_users au where au.user_id = p_user) into v_is_admin;
+
+  select pa.chave into v_perfil_chave
+  from public.usuario_perfil up
+  join public.perfis_acesso pa on pa.id = up.perfil_id
+  where up.user_id = p_user;
+
+  if v_is_admin or v_perfil_chave = 'admin' then
+    select jsonb_object_agg(a.chave, true) into v_perms from public.permissoes_acoes a;
+    return jsonb_build_object('perfil', coalesce(v_perfil_chave, 'admin'), 'is_admin', true, 'permissoes', coalesce(v_perms, '{}'::jsonb));
+  end if;
+
+  if v_perfil_chave is null then
+    select jsonb_object_agg(a.chave, false) into v_perms from public.permissoes_acoes a;
+    return jsonb_build_object('perfil', null, 'is_admin', false, 'permissoes', coalesce(v_perms, '{}'::jsonb));
+  end if;
+
+  select jsonb_object_agg(a.chave, coalesce(pp.permitido, false)) into v_perms
+  from public.permissoes_acoes a
+  left join public.perfis_permissoes pp
+    on pp.permissao_id = a.id
+   and pp.perfil_id = (select id from public.perfis_acesso where chave = v_perfil_chave);
+
+  return jsonb_build_object('perfil', v_perfil_chave, 'is_admin', false, 'permissoes', coalesce(v_perms, '{}'::jsonb));
+end;
+$$;
+
+grant execute on function public.resolver_permissoes_usuario(uuid) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- C5) registrar_evento com validação/limites de entrada
+-- ---------------------------------------------------------------------
+create or replace function public.registrar_evento(
+  p_module       text,
+  p_event_type   text,
+  p_entity_type  text default null,
+  p_entity_id    text default null,
+  p_payload      jsonb default '{}'::jsonb,
+  p_order_ref    text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id   uuid;
+  v_nome text;
+begin
+  if auth.uid() is null then
+    raise exception 'Sem usuário autenticado';
+  end if;
+  if p_event_type is null or length(trim(p_event_type)) = 0 then
+    raise exception 'event_type é obrigatório';
+  end if;
+
+  -- Limites para evitar poluição/abuso da trilha de auditoria.
+  p_module      := left(coalesce(nullif(trim(p_module), ''), 'outros'), 50);
+  p_event_type  := left(trim(p_event_type), 100);
+  p_entity_type := left(p_entity_type, 50);
+  p_entity_id   := left(p_entity_id, 120);
+  p_order_ref   := left(p_order_ref, 120);
+
+  select coalesce(name, email) into v_nome from public.profiles where user_id = auth.uid();
+
+  insert into public.operational_events (user_id, module, event_type, entity_type, entity_id, actor_name, payload, order_ref, created_at)
+  values (auth.uid(), p_module, p_event_type, p_entity_type, p_entity_id, v_nome, coalesce(p_payload, '{}'::jsonb), p_order_ref, now())
+  returning id into v_id;
+  return v_id;
+exception
+  when undefined_table or undefined_column then
+    return null;
+end;
+$$;
+
+grant execute on function public.registrar_evento(text, text, text, text, jsonb, text) to authenticated;
+
+-- ---------------------------------------------------------------------
+-- Helpers para RLS por permissão (consumidos em 0013)
+-- ---------------------------------------------------------------------
+-- pode(): admin (admin_users) OU possui a permissão via perfil.
+create or replace function public.pode(p_chave text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.is_admin_user() or public.tem_permissao(p_chave);
+$$;
+
+-- tem_perfil(): o usuário tem um perfil de acesso atribuído?
+-- Usado para que a RLS por permissão só restrinja quem TEM perfil (usuários do
+-- app mobile, sem perfil, continuam governados pelas policies de dono).
+create or replace function public.tem_perfil(p_user uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.usuario_perfil up where up.user_id = p_user);
+$$;
+
+grant execute on function public.pode(text) to authenticated;
+grant execute on function public.tem_perfil(uuid) to authenticated;
+
+
+-- ╔════════════════════════════════════════════════════════════════════╗
+-- ║ BLOCO 0013_rls_por_permissao
+-- ╚════════════════════════════════════════════════════════════════════╝
+-- =====================================================================
+-- 0013_rls_por_permissao.sql — Permissões efetivas no servidor (C1)
+-- ---------------------------------------------------------------------
+-- Torna a matriz de permissões EFETIVA via RLS, sem quebrar nada:
+--   • Policies RESTRICTIVE (AND-combinadas) que só "mordem" quem TEM perfil
+--     atribuído: condição = (not tem_perfil() OR pode('can_x')).
+--   • Usuários do app mobile (donos, SEM perfil) → not tem_perfil() = true →
+--     passam (continuam governados pelas policies de dono existentes).
+--   • Admins → pode() = true → passam.
+--   • Usuário de painel com perfil (operador/supervisor/leitura) → precisa da
+--     permissão correspondente para UPDATE/DELETE.
+--
+-- Seguro aplicar já: enquanto ninguém tem perfil (usuario_perfil vazio), nada
+-- muda; o enforcement ativa conforme você atribui perfis (atribuir_perfil_usuario).
+-- Idempotente. Requer 0012 (pode/tem_perfil). Aplique no SQL Editor.
+-- =====================================================================
+
+-- Helper interno deste arquivo: cria uma policy restritiva por permissão se a
+-- tabela existir e a policy ainda não existir.
+do $$
+declare
+  r record;
+  -- tabela, comando (update/delete/insert), chave de permissão, nome da policy
+  alvos text[][] := array[
+    ['validade_products', 'update', 'can_edit_validade',     'validade_products_perm_update'],
+    ['validade_products', 'delete', 'can_delete_validade',   'validade_products_perm_delete'],
+    ['purchase_orders',   'update', 'can_correct_entrada',   'purchase_orders_perm_update'],
+    ['conferencia_bonus_queue',       'update', 'can_assign_tasks', 'conf_bonus_queue_perm_update'],
+    ['conferencia_saida_bonus_queue', 'update', 'can_assign_tasks', 'conf_saida_queue_perm_update'],
+    ['approval_requests', 'update', 'can_approve_workflows', 'approval_requests_perm_update'],
+    ['sistema_configuracoes', 'update', 'can_manage_settings', 'sistema_config_perm_update'],
+    ['sistema_configuracoes', 'delete', 'can_manage_settings', 'sistema_config_perm_delete'],
+    ['sistema_configuracoes', 'insert', 'can_manage_settings', 'sistema_config_perm_insert']
+  ];
+  v_tbl text; v_cmd text; v_perm text; v_pol text; v_cond text; v_sql text;
+begin
+  foreach r slice 1 in array alvos loop
+    v_tbl := r[1]; v_cmd := r[2]; v_perm := r[3]; v_pol := r[4];
+    -- tabela precisa existir
+    if not exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = v_tbl) then
+      continue;
+    end if;
+    -- policy já existe? pula (idempotente)
+    if exists (select 1 from pg_policies where schemaname = 'public' and tablename = v_tbl and policyname = v_pol) then
+      continue;
+    end if;
+    v_cond := format('(not public.tem_perfil() or public.pode(%L))', v_perm);
+    if v_cmd = 'insert' then
+      v_sql := format('create policy %I on public.%I as restrictive for insert with check %s', v_pol, v_tbl, v_cond);
+    elsif v_cmd = 'update' then
+      v_sql := format('create policy %I on public.%I as restrictive for update using %s with check %s', v_pol, v_tbl, v_cond, v_cond);
+    else -- delete
+      v_sql := format('create policy %I on public.%I as restrictive for %s using %s', v_pol, v_tbl, v_cmd, v_cond);
+    end if;
+    execute v_sql;
+  end loop;
+end $$;
+
+-- NOTA: para o enforcement valer p/ um usuário de painel não-admin, atribua um
+-- perfil a ele: select public.atribuir_perfil_usuario('<uuid>', 'operador');
+-- Recomendado definir um perfil padrão (ex.: 'leitura') para novos usuários.

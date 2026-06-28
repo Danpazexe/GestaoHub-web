@@ -9,20 +9,23 @@ const initialState = {
 
 export const useConfirm = () => {
   const [state, setState] = useState(initialState);
+  const [reason, setReason] = useState('');
 
   const close = (result) => {
     state.resolve?.(result);
     setState(initialState);
+    setReason('');
   };
 
   const confirm = (config) => new Promise((resolve) => {
-    setState({
-      open: true,
-      config,
-      resolve,
-    });
+    setReason('');
+    setState({ open: true, config, resolve });
   });
 
+  const requireReason = Boolean(state.config?.requireReason);
+
+  // Com requireReason, resolve a STRING do motivo (truthy); senão resolve true.
+  // Cancelar resolve false. Callers podem fazer `const r = await confirm(...)`.
   const ConfirmModalNode = useMemo(() => createElement(ConfirmModal, {
     open: state.open,
     title: state.config?.title || 'Confirmar ação',
@@ -30,9 +33,13 @@ export const useConfirm = () => {
     confirmLabel: state.config?.confirmLabel || 'Confirmar',
     cancelLabel: state.config?.cancelLabel || 'Cancelar',
     danger: Boolean(state.config?.danger),
-    onConfirm: () => close(true),
+    requireReason,
+    reasonLabel: state.config?.reasonLabel || 'Motivo (obrigatório)',
+    reasonValue: reason,
+    onReasonChange: setReason,
+    onConfirm: () => close(requireReason ? reason.trim() : true),
     onCancel: () => close(false),
-  }), [state]);
+  }), [state, reason, requireReason]);
 
   return { confirm, ConfirmModalNode };
 };

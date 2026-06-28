@@ -8,10 +8,15 @@ export const ConfirmModal = ({
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   danger = false,
+  requireReason = false,
+  reasonLabel = 'Motivo (obrigatório)',
+  reasonValue = '',
+  onReasonChange,
   onConfirm,
   onCancel,
 }) => {
   const cancelRef = useRef(null);
+  const reasonOk = !requireReason || reasonValue.trim().length >= 3;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -47,6 +52,17 @@ export const ConfirmModal = ({
       >
         <h3 id="confirm-modal-title">{title}</h3>
         {description ? <p>{description}</p> : null}
+        {requireReason ? (
+          <label className="builder-field" style={{ marginTop: 4 }}>
+            <span>{reasonLabel}</span>
+            <textarea
+              value={reasonValue}
+              onChange={(event) => onReasonChange?.(event.target.value.slice(0, 300))}
+              rows={3}
+              placeholder="Descreva o motivo desta ação"
+            />
+          </label>
+        ) : null}
         <div className="confirm-modal-actions">
           <button
             ref={cancelRef}
@@ -61,6 +77,7 @@ export const ConfirmModal = ({
             type="button"
             className={danger ? 'danger-button' : 'primary-button button-inline'}
             onClick={onConfirm}
+            disabled={!reasonOk}
             title={confirmLabel}
           >
             {confirmLabel}

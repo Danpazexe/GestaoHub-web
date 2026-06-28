@@ -56,18 +56,29 @@ export const AvariasView = ({ avarias, onRefresh }) => {
   };
 
   const deleteItem = async (row) => {
-    const approved = await confirm({
+    // Motivo obrigatório (§25) — confirm devolve a string do motivo.
+    const reason = await confirm({
       title: 'Excluir item de avaria?',
       description: `O item ${row.codprod || '-'} será removido do lote.`,
       confirmLabel: 'Excluir',
       danger: true,
+      requireReason: true,
+      reasonLabel: 'Motivo da exclusão (obrigatório)',
     });
 
-    if (!approved) return;
+    if (!reason) return;
 
     const loadingId = toast.loading('Removendo item...');
     try {
       await adminApi.deleteAvariaItem(row.item_id);
+      // Auditoria de escrita (§18) — best-effort, não bloqueia a ação.
+      adminApi.logOperationalEvent({
+        module: 'avarias',
+        eventType: 'item_excluido',
+        entityType: 'avaria_item',
+        entityId: String(row.item_id),
+        payload: { codprod: row.codprod || null, motivo: reason },
+      });
       await onRefresh?.();
       toast.success('Item removido.');
     } catch (error) {

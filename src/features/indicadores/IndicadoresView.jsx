@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { AppIcon } from '../../components/AppIcon';
 import { StatCard } from '../../components/StatCard';
 import { toast } from '../../lib/toast';
 import { buildModuleDashboards, buildComparativo, computeMetaProgress } from '../../lib/dashboards';
-import { loadMetas, saveMetas } from '../../lib/metas';
+import { loadMetas, fetchMetas, saveMetas } from '../../lib/metas';
 
 const DeltaPill = ({ item }) => {
   const improved = item.betterWhenLower ? item.deltaPct < 0 : item.deltaPct > 0;
@@ -19,6 +19,14 @@ const DeltaPill = ({ item }) => {
 export const IndicadoresView = (props) => {
   const data = props;
   const [metas, setMetas] = useState(() => loadMetas());
+  const [saving, setSaving] = useState(false);
+
+  // Carrega as metas do Supabase ao montar (getter síncrono devolve só o cache).
+  useEffect(() => {
+    let alive = true;
+    fetchMetas().then((m) => { if (alive) setMetas(m); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const modules = useMemo(() => buildModuleDashboards(data), [data]);
   const comparativo = useMemo(() => buildComparativo(data), [data]);
@@ -29,9 +37,16 @@ export const IndicadoresView = (props) => {
     setMetas((cur) => ({ ...cur, [key]: { ...cur[key], target } }));
   };
 
-  const persist = () => {
-    if (saveMetas(metas)) toast.success('Metas salvas.');
-    else toast.error('Não foi possível salvar as metas.');
+  const persist = async () => {
+    setSaving(true);
+    try {
+      await saveMetas(metas);
+      toast.success('Metas salvas.');
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível salvar as metas.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -40,7 +55,7 @@ export const IndicadoresView = (props) => {
         title="Metas operacionais"
         subtitle="Defina o alvo de cada meta; o progresso é calculado em tempo real"
         kicker="Indicadores"
-        actions={<button type="button" className="primary-button" onClick={persist} title="Salvar metas">Salvar metas</button>}
+        actions={<button type="button" className="primary-button" onClick={persist} disabled={saving} title="Salvar metas">{saving ? 'Salvando...' : 'Salvar metas'}</button>}
       >
         <div className="metas-grid">
           {metaProgress.map((meta) => (

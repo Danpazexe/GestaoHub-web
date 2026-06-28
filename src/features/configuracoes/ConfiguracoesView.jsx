@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { toast } from '../../lib/toast';
-import { loadConfig, saveConfig, textToList, listToText, TIPOS_TRATATIVA } from '../../lib/config';
-import { loadFaixasConfig, saveFaixasConfig } from '../../lib/validadeFaixas';
+import { loadConfig, fetchConfig, saveConfig, textToList, listToText, TIPOS_TRATATIVA } from '../../lib/config';
+import { loadFaixasConfig, fetchFaixasConfig, saveFaixasConfig } from '../../lib/validadeFaixas';
 
 const LIST_FIELDS = [
   { key: 'funcoes', label: 'Funções operacionais', hint: 'Conferente, Recebimento, Validade…' },
@@ -14,19 +14,38 @@ const LIST_FIELDS = [
 
 // Configurações do sistema (briefing §24). Centraliza regras operacionais que
 // não devem ficar fixas no código: faixas de validade, funções, setores e
-// motivos. Persistido em localStorage.
+// motivos. Persistido no Supabase (sistema_configuracoes), compartilhado entre
+// supervisores; cai para os defaults se a migração 0009 ainda não foi aplicada.
 export const ConfiguracoesView = () => {
   const [faixas, setFaixas] = useState(() => loadFaixasConfig());
   const [config, setConfig] = useState(() => loadConfig());
+  const [saving, setSaving] = useState(false);
+
+  // Carrega do Supabase ao montar (o getter síncrono devolve só o cache/defaults).
+  useEffect(() => {
+    let alive = true;
+    Promise.all([fetchFaixasConfig(), fetchConfig()]).then(([f, c]) => {
+      if (!alive) return;
+      setFaixas(f);
+      setConfig(c);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const setFaixa = (key, value) => setFaixas((cur) => ({ ...cur, [key]: Math.max(0, Number(value) || 0) }));
   const setList = (key, text) => setConfig((cur) => ({ ...cur, [key]: textToList(text) }));
 
-  const persist = () => {
-    const okFaixas = saveFaixasConfig(faixas);
-    const okConfig = saveConfig(config);
-    if (okFaixas && okConfig) toast.success('Configurações salvas.');
-    else toast.error('Não foi possível salvar as configurações.');
+  const persist = async () => {
+    setSaving(true);
+    try {
+      await saveFaixasConfig(faixas);
+      await saveConfig(config);
+      toast.success('Configurações salvas.');
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível salvar as configurações.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const faixasInvalid = !(faixas.criticoDias < faixas.atencaoDias && faixas.atencaoDias < faixas.monitorarDias);
@@ -37,7 +56,7 @@ export const ConfiguracoesView = () => {
         title="Configurações do sistema"
         subtitle="Regras operacionais editáveis — evite valores fixos no código"
         kicker="Administração"
-        actions={<button type="button" className="primary-button" onClick={persist} disabled={faixasInvalid} title="Salvar configurações">Salvar configurações</button>}
+        actions={<button type="button" className="primary-button" onClick={persist} disabled={faixasInvalid || saving} title="Salvar configurações">{saving ? 'Salvando...' : 'Salvar configurações'}</button>}
       >
         <h4 className="config-group-title">Faixas de validade (dias)</h4>
         <div className="config-faixas">

@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { exportCsv } from '../../lib/csv';
 import { toast } from '../../lib/toast';
 import { formatDateTime } from '../../lib/format';
 import { buildPendencias } from '../../lib/pendencias';
 import { severityMeta } from '../../lib/severity';
-import { PERMISSIONS, ROLES, loadMatrix, saveMatrix } from '../../lib/permissions';
+import { hasReason, VALIDATION_MESSAGES } from '../../lib/validations';
+import { PERMISSIONS, ROLES, defaultMatrix } from '../../lib/permissions';
+import { adminApi } from '../../services/adminApi';
+import { usePermissions } from '../../context/PermissionsContext';
 
-const CHECKLIST_KEY = 'gh-checklist-v1';
+const SETTING_CHECKLIST = 'checklist_publicacao';
 
 // Checklist de publicação (briefing §27).
 const CHECKLIST_ITEMS = [
@@ -25,13 +28,33 @@ const CHECKLIST_ITEMS = [
   'Dashboard carregando corretamente',
 ];
 
-const loadChecklist = () => {
-  try { return JSON.parse(localStorage.getItem(CHECKLIST_KEY) || '{}'); } catch { return {}; }
-};
-
 export const AdminCenterView = (data) => {
-  const [checklist, setChecklist] = useState(loadChecklist);
-  const [matrix, setMatrix] = useState(() => loadMatrix());
+  const { can } = usePermissions();
+  const canManageSettings = can('can_manage_settings');
+  const canExport = can('can_export_reports');
+
+  const [checklist, setChecklist] = useState({});
+  // Permissões reais (Supabase). roles/permissions vêm do banco; cai para o catálogo local.
+  const [permData, setPermData] = useState({ roles: ROLES, permissions: PERMISSIONS, matrix: defaultMatrix() });
+  const [baseline, setBaseline] = useState(() => JSON.stringify(defaultMatrix()));
+  const [permReason, setPermReason] = useState('');
+  const [savingPerm, setSavingPerm] = useState(false);
+
+  const refreshMatrix = () => {
+    adminApi.getPermissionsMatrix().then((res) => {
+      if (res && res.matrix) {
+        setPermData(res);
+        setBaseline(JSON.stringify(res.matrix));
+      }
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    adminApi.getSetting(SETTING_CHECKLIST, {})
+      .then((v) => setChecklist(v && typeof v === 'object' ? v : {}))
+      .catch(() => {});
+    refreshMatrix();
+  }, []);
 
   // Bases exportáveis (briefing §19 backup/exportação geral).
   const exportables = useMemo(() => {
@@ -110,12 +133,14 @@ export const AdminCenterView = (data) => {
   }, [data]);
 
   const doExport = (item) => {
+    if (!canExport) { toast.error('Sem permissão para exportar relatórios.'); return; }
     if (!item.rows.length) { toast.error(`Sem dados em "${item.label}".`); return; }
     exportCsv(item.rows, item.columns, item.key);
     toast.success(`${item.label} exportado.`);
   };
 
   const exportAll = () => {
+    if (!canExport) { toast.error('Sem permissão para exportar relatórios.'); return; }
     const available = exportables.filter((e) => e.rows.length);
     if (!available.length) { toast.error('Nada para exportar.'); return; }
     available.forEach((item) => exportCsv(item.rows, item.columns, item.key));
@@ -123,22 +148,46 @@ export const AdminCenterView = (data) => {
   };
 
   const toggleCheck = (item) => {
-    setChecklist((cur) => {
-      const next = { ...cur, [item]: !cur[item] };
-      try { localStorage.setItem(CHECKLIST_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
+    const next = { ...checklist, [item]: !checklist[item] };
+    setChecklist(next);
+    adminApi.saveSetting(SETTING_CHECKLIST, next).catch(() => toast.error('Falha ao salvar o checklist.'));
   };
 
   const checkedCount = CHECKLIST_ITEMS.filter((i) => checklist[i]).length;
 
-  const togglePerm = (role, perm) => {
-    setMatrix((cur) => ({ ...cur, [role]: { ...cur[role], [perm]: !cur[role][perm] } }));
+  const togglePerm = (roleKey, permKey) => {
+    setPermData((cur) => ({
+      ...cur,
+      matrix: { ...cur.matrix, [roleKey]: { ...cur.matrix[roleKey], [permKey]: !cur.matrix[roleKey]?.[permKey] } },
+    }));
   };
 
-  const persistMatrix = () => {
-    if (saveMatrix(matrix)) toast.success('Permissões salvas.');
-    else toast.error('Não foi possível salvar as permissões.');
+  // Salva apenas as células alteradas (cada uma com motivo, via RPC com auditoria).
+  const persistMatrix = async () => {
+    const base = JSON.parse(baseline);
+    const changes = [];
+    for (const role of Object.keys(permData.matrix)) {
+      for (const pk of Object.keys(permData.matrix[role])) {
+        const now = Boolean(permData.matrix[role][pk]);
+        const was = Boolean(base[role]?.[pk]);
+        if (now !== was) changes.push({ role, pk, value: now });
+      }
+    }
+    if (!changes.length) { toast.error('Nenhuma alteração para salvar.'); return; }
+    if (!hasReason(permReason)) { toast.error(VALIDATION_MESSAGES.reason); return; }
+    setSavingPerm(true);
+    try {
+      for (const c of changes) {
+        await adminApi.setPermission(c.role, c.pk, c.value, permReason);
+      }
+      toast.success(`${changes.length} permissão(ões) atualizada(s).`);
+      setPermReason('');
+      refreshMatrix();
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível salvar as permissões.');
+    } finally {
+      setSavingPerm(false);
+    }
   };
 
   return (
@@ -147,7 +196,7 @@ export const AdminCenterView = (data) => {
         title="Backup e exportação geral"
         subtitle="Exporte as bases operacionais para conferência externa e segurança"
         kicker="Administração"
-        actions={<button type="button" className="primary-button" onClick={exportAll} title="Exportar todas as bases">Exportar tudo</button>}
+        actions={<button type="button" className="primary-button" onClick={exportAll} disabled={!canExport} title="Exportar todas as bases">Exportar tudo</button>}
       >
         <div className="export-grid">
           {exportables.map((item) => (
@@ -156,7 +205,7 @@ export const AdminCenterView = (data) => {
               type="button"
               className="export-card"
               onClick={() => doExport(item)}
-              disabled={!item.count}
+              disabled={!item.count || !canExport}
               title={`Exportar ${item.label}`}
             >
               <span className="export-card-label">{item.label}</span>
@@ -165,6 +214,7 @@ export const AdminCenterView = (data) => {
             </button>
           ))}
         </div>
+        {!canExport ? <p className="perm-note">Seu perfil não tem a permissão <code>can_export_reports</code>.</p> : null}
       </PanelSection>
 
       <PanelSection
@@ -189,28 +239,28 @@ export const AdminCenterView = (data) => {
 
       <PanelSection
         title="Permissões por ação"
-        subtitle="Controle granular por papel — não dependa apenas do cargo (governança base)"
+        subtitle="Controle granular por papel — aplicado no banco (RLS) e auditado"
         kicker="Administração"
-        actions={<button type="button" className="primary-button" onClick={persistMatrix} title="Salvar permissões">Salvar permissões</button>}
+        actions={<button type="button" className="primary-button" onClick={persistMatrix} disabled={!canManageSettings || savingPerm} title="Salvar permissões">{savingPerm ? 'Salvando...' : 'Salvar permissões'}</button>}
       >
         <div className="table-shell">
           <table className="data-table perm-table">
             <thead>
               <tr>
                 <th>Permissão</th>
-                {ROLES.map((role) => <th key={role.key} className="perm-role">{role.label}</th>)}
+                {permData.roles.map((role) => <th key={role.key} className="perm-role">{role.label}</th>)}
               </tr>
             </thead>
             <tbody>
-              {PERMISSIONS.map((perm) => (
+              {permData.permissions.map((perm) => (
                 <tr key={perm.key}>
                   <td><strong>{perm.label}</strong><div className="cell-subtext">{perm.key}</div></td>
-                  {ROLES.map((role) => (
+                  {permData.roles.map((role) => (
                     <td key={role.key} className="perm-cell">
                       <input
                         type="checkbox"
-                        checked={Boolean(matrix[role.key]?.[perm.key])}
-                        disabled={role.key === 'admin'}
+                        checked={Boolean(permData.matrix[role.key]?.[perm.key])}
+                        disabled={role.key === 'admin' || !canManageSettings}
                         onChange={() => togglePerm(role.key, perm.key)}
                         aria-label={`${perm.label} para ${role.label}`}
                       />
@@ -221,7 +271,22 @@ export const AdminCenterView = (data) => {
             </tbody>
           </table>
         </div>
-        <p className="perm-note">O administrador mantém acesso total. Estas permissões formam a base de governança usada pela interface; o reforço definitivo deve ser aplicado também no backend (políticas/RLS do Supabase).</p>
+        <label className="builder-field" style={{ marginTop: 14 }}>
+          <span>Motivo da alteração (obrigatório para salvar)</span>
+          <textarea
+            value={permReason}
+            onChange={(e) => setPermReason(e.target.value.slice(0, 300))}
+            rows={2}
+            placeholder="Ex.: Supervisor passa a poder exportar relatórios a pedido da gerência"
+            disabled={!canManageSettings}
+          />
+        </label>
+        <p className="perm-note">
+          O administrador mantém acesso total. As alterações são gravadas na matriz do banco
+          (<code>perfis_permissoes</code>) via função com <code>SECURITY DEFINER</code> e registradas em
+          <code> auditoria_alteracoes_permissao</code> (quem mudou, antes/depois, motivo).
+          {canManageSettings ? null : ' Seu perfil não pode gerenciar configurações.'}
+        </p>
       </PanelSection>
     </>
   );

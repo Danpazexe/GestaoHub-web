@@ -1,8 +1,11 @@
 // Configurações operacionais do sistema (briefing §24). Listas configuráveis
-// persistidas em localStorage para alimentar selects (motivos, funções, setores)
-// e a importação em massa. As faixas de validade ficam em lib/validadeFaixas.
+// (motivos, funções, setores) persistidas no Supabase
+// (sistema_configuracoes/chave 'config_sistema'), não mais em localStorage.
+// Cache em memória + fetch async. As faixas de validade ficam em validadeFaixas.
 
-const STORAGE_KEY = 'gh-config-sistema-v1';
+import { adminApi } from '../services/adminApi';
+
+const SETTING_KEY = 'config_sistema';
 
 export const DEFAULT_CONFIG = {
   funcoes: ['Conferente', 'Recebimento', 'Validade', 'Avarias', 'Estoque'],
@@ -15,28 +18,30 @@ export const DEFAULT_CONFIG = {
 // Tipos de tratativa de validade — canônicos do banco (read-only na UI).
 export const TIPOS_TRATATIVA = ['Vendido', 'Trocado', 'Devolvido', 'Vencido/Perda'];
 
-export const loadConfig = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return structuredCloneSafe(DEFAULT_CONFIG);
-    const saved = JSON.parse(raw);
-    const merged = structuredCloneSafe(DEFAULT_CONFIG);
-    for (const key of Object.keys(merged)) {
-      if (Array.isArray(saved[key])) merged[key] = saved[key];
-    }
-    return merged;
-  } catch {
-    return structuredCloneSafe(DEFAULT_CONFIG);
+let _cache = structuredCloneSafe(DEFAULT_CONFIG);
+
+const merge = (saved = {}) => {
+  const merged = structuredCloneSafe(DEFAULT_CONFIG);
+  for (const key of Object.keys(merged)) {
+    if (Array.isArray(saved[key])) merged[key] = saved[key];
   }
+  return merged;
 };
 
-export const saveConfig = (config) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-    return true;
-  } catch {
-    return false;
-  }
+// Getter síncrono — cache em memória (defaults até hidratar via fetchConfig).
+export const loadConfig = () => structuredCloneSafe(_cache);
+
+export const fetchConfig = async () => {
+  const valor = await adminApi.getSetting(SETTING_KEY, null);
+  if (valor) _cache = merge(valor);
+  return structuredCloneSafe(_cache);
+};
+
+export const saveConfig = async (config) => {
+  const next = merge(config);
+  await adminApi.saveSetting(SETTING_KEY, next);
+  _cache = next;
+  return true;
 };
 
 // Converte texto (um item por linha) em lista limpa, e vice-versa.

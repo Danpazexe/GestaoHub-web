@@ -1,25 +1,40 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { SelectFilter } from '../../components/SelectFilter';
 import { toast } from '../../lib/toast';
 import { formatDateTime } from '../../lib/format';
-import { getLogs, clearLogs, logEvent } from '../../lib/logger';
+import { getLogs } from '../../lib/logger';
+import { adminApi } from '../../services/adminApi';
 
 const LEVEL_TONE = { error: 'danger', warn: 'warning', info: 'info' };
 
-// Logs técnicos e erros (briefing §34.17). Lê o buffer local de erros do
-// frontend (falha ao carregar dados, erro de runtime, promise rejeitada, etc.).
+// Logs técnicos e erros (briefing §34.17). Lê o histórico centralizado no
+// Supabase (tabela logs_tecnicos); cai para o buffer da sessão se indisponível.
 export const LogsView = () => {
-  const [version, setVersion] = useState(0);
   const [level, setLevel] = useState('');
-  const logs = useMemo(() => getLogs(), [version]);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const refresh = () => {
+    setLoading(true);
+    adminApi.getLogsTecnicos(200)
+      .then((rows) => setLogs(rows && rows.length ? rows : getLogs()))
+      .catch(() => setLogs(getLogs()))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { refresh(); }, []);
 
   const filtered = level ? logs.filter((l) => l.level === level) : logs;
 
-  const refresh = () => setVersion((v) => v + 1);
-  const handleClear = () => { clearLogs(); refresh(); toast.success('Logs limpos.'); };
-  const handleTest = () => { logEvent({ level: 'info', message: 'Log de teste gerado pelo painel', context: 'LogsView' }); refresh(); };
+  const handleClear = async () => {
+    try { await adminApi.clearLogsTecnicos(); refresh(); toast.success('Logs limpos.'); }
+    catch (error) { toast.error(error?.message || 'Não foi possível limpar os logs.'); }
+  };
+  const handleTest = async () => {
+    await adminApi.insertLogTecnico({ level: 'info', message: 'Log de teste gerado pelo painel', context: 'LogsView' });
+    refresh();
+  };
 
   return (
     <PanelSection
@@ -28,7 +43,7 @@ export const LogsView = () => {
       kicker="Sistema"
       actions={(
         <div className="inline-actions">
-          <button type="button" className="ghost-button" onClick={refresh}>Atualizar</button>
+          <button type="button" className="ghost-button" onClick={refresh} disabled={loading}>{loading ? 'Atualizando...' : 'Atualizar'}</button>
           <button type="button" className="ghost-button" onClick={handleTest}>Gerar log de teste</button>
           <button type="button" className="danger-button" onClick={handleClear} disabled={!logs.length}>Limpar</button>
         </div>
@@ -43,7 +58,7 @@ export const LogsView = () => {
         />
       </div>
       <p className="config-hint" style={{ marginTop: 0, marginBottom: 12 }}>
-        Integrações como Sentry, LogRocket ou Supabase Logs podem ser avaliadas no futuro; por ora os logs ficam no próprio navegador.
+        Logs centralizados no Supabase (tabela <code>logs_tecnicos</code>), visíveis para qualquer admin. Integrações como Sentry/LogRocket podem ser avaliadas no futuro.
       </p>
       <DataTable
         rows={filtered}

@@ -1,20 +1,23 @@
 // Notificações internas (briefing §20). Deriva notificações dos dados já
 // carregados: pendências de alta prioridade + eventos recentes (com destaque
-// para ações sensíveis). Estado lida/não-lida persistido em localStorage por id.
+// para ações sensíveis). Estado lida/não-lida persistido por usuário no Supabase
+// (usuario_preferencias/chave 'notif_lidas') — não mais em localStorage.
 
 import { buildPendencias } from './pendencias';
 import { severityMeta } from './severity';
 import { SENSITIVE_ACTIONS } from './relatorios';
+import { adminApi } from '../services/adminApi';
 
-const READ_KEY = 'gh-notif-read-v1';
+const PREF_KEY = 'notif_lidas';
 
-export const loadReadIds = () => {
-  try { return new Set(JSON.parse(localStorage.getItem(READ_KEY) || '[]')); } catch { return new Set(); }
+// Carrega os ids lidos do usuário atual (Set). Retorna Set vazio se indisponível.
+export const loadReadIds = async () => {
+  const arr = await adminApi.getUserPref(PREF_KEY, []);
+  return new Set(Array.isArray(arr) ? arr : []);
 };
 
-export const saveReadIds = (set) => {
-  try { localStorage.setItem(READ_KEY, JSON.stringify(Array.from(set))); return true; } catch { return false; }
-};
+// Persiste os ids lidos do usuário atual (best-effort).
+export const saveReadIds = (set) => adminApi.saveUserPref(PREF_KEY, Array.from(set));
 
 // Constrói a lista de notificações (id estável para casar com o estado lido).
 export const buildNotificacoes = (data = {}) => {

@@ -1,19 +1,11 @@
-// Logs técnicos e erros (briefing §34.17). Registra erros relevantes do
-// frontend num buffer persistido em localStorage, exibível na tela de Logs.
-// Sem dependências externas (Sentry/LogRocket ficam como avaliação futura).
+// Logs técnicos e erros (briefing §34.17). Mantém um buffer em memória da sessão
+// (exibição imediata) e centraliza cada log no Supabase (tabela logs_tecnicos) —
+// não usa mais localStorage. A tela de Logs lê o histórico via adminApi.
 
-const STORAGE_KEY = 'gh-logs-v1';
+import { adminApi } from '../services/adminApi';
+
 const MAX = 100;
-
-const read = () => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
-};
-const write = (logs) => {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(logs.slice(0, MAX))); } catch { /* ignore */ }
-};
+let _buffer = []; // ring buffer da sessão atual (best-effort/imediato)
 
 // Registra um log. level: 'error' | 'warn' | 'info'.
 export const logEvent = ({ level = 'error', message, context = '' }) => {
@@ -24,15 +16,17 @@ export const logEvent = ({ level = 'error', message, context = '' }) => {
     message: String(message || 'Erro'),
     context: typeof context === 'string' ? context : safeStringify(context),
   };
-  const logs = read();
-  logs.unshift(entry);
-  write(logs);
+  _buffer.unshift(entry);
+  _buffer = _buffer.slice(0, MAX);
+  // Envia ao Supabase sem bloquear (best-effort; degrada para o buffer local).
+  // .catch evita unhandled rejection — insertLogTecnico já trata erros internamente.
+  Promise.resolve(adminApi.insertLogTecnico({ level: entry.level, message: entry.message, context: entry.context })).catch(() => {});
   return entry;
 };
 
 export const logError = (message, context) => logEvent({ level: 'error', message, context });
-export const getLogs = () => read();
-export const clearLogs = () => { write([]); };
+export const getLogs = () => [..._buffer];
+export const clearLogs = () => { _buffer = []; };
 
 const safeStringify = (value) => {
   try { return JSON.stringify(value); } catch { return String(value); }

@@ -9,6 +9,9 @@ import { LoginForm } from './components/LoginForm';
 import { AdminShell } from './components/AdminShell';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { adminApi } from './services/adminApi';
+import { PermissionsProvider } from './context/PermissionsContext';
+import { fetchFaixasConfig } from './lib/validadeFaixas';
+import { logError } from './lib/logger';
 import * as Views from './config/lazyViews';
 
 // View padrão (landing) e redirecionamento das rotas legadas para a tela unificada.
@@ -29,6 +32,14 @@ function App() {
     const target = LEGACY_REDIRECTS[routeKey];
     if (target) navigate(`/${target}`, { replace: true });
   }, [routeKey, navigate]);
+
+  // Hidrata o cache das faixas de validade (Supabase) ao autenticar, para
+  // classifyValidade/fechamento usarem os limites configurados, não os defaults.
+  useEffect(() => {
+    if (user && admin) {
+      fetchFaixasConfig().catch((e) => logError('Falha ao carregar faixas de validade', e?.message));
+    }
+  }, [user, admin]);
 
   const { dataState, loadDashboard } = useDashboardData(user, admin);
   const {
@@ -196,7 +207,7 @@ function App() {
   }
 
   return (
-    <>
+    <PermissionsProvider enabled={Boolean(user && admin)}>
       <Toaster position="top-right" />
       <AdminShell
         profile={profile}
@@ -216,7 +227,7 @@ function App() {
           </Suspense>
         </ErrorBoundary>
       </AdminShell>
-    </>
+    </PermissionsProvider>
   );
 }
 

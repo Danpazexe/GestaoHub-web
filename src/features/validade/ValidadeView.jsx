@@ -15,7 +15,7 @@ import { toast } from '../../lib/toast';
 import { exportCsv } from '../../lib/csv';
 import { hasReason, VALIDATION_MESSAGES } from '../../lib/validations';
 import { formatDateTime, truncate } from '../../lib/format';
-import { classifyValidade, readImage, hasImageField, isOpenValidade, isDirectImageUrl, loadFaixasConfig } from '../../lib/validadeFaixas';
+import { classifyValidade, readImage, hasImageField, isOpenValidade, isDirectImageUrl, loadFaixasConfig, fetchFaixasConfig } from '../../lib/validadeFaixas';
 
 // Vocabulário canônico de tratativa de validade — MESMOS códigos do app (EN) que o
 // CHECK do banco (ck_validade_treatment_type) aceita: sold/exchanged/returned/expired.
@@ -62,8 +62,13 @@ export const ValidadeView = ({ validade, onRefresh }) => {
 
   const rows = validade || [];
   const imageTrackable = useMemo(() => hasImageField(rows), [rows]);
-  // Faixas configuráveis carregadas uma vez (evita reler localStorage por linha).
-  const faixasConfig = useMemo(() => loadFaixasConfig(), []);
+  // Faixas configuráveis (Supabase). Começa do cache e atualiza após o fetch.
+  const [faixasConfig, setFaixasConfig] = useState(() => loadFaixasConfig());
+  useEffect(() => {
+    let alive = true;
+    fetchFaixasConfig().then((f) => { if (alive) setFaixasConfig(f); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   // Resolve URLs assinadas para os caminhos do bucket privado product-images.
   const [imageUrls, setImageUrls] = useState({});

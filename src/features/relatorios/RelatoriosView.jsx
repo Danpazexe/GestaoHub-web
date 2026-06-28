@@ -5,11 +5,14 @@ import { SelectFilter } from '../../components/SelectFilter';
 import { exportCsv } from '../../lib/csv';
 import { toast } from '../../lib/toast';
 import { REPORTS, PERIODS, periodRange } from '../../lib/relatorios';
+import { usePermissions } from '../../context/PermissionsContext';
 
 // Tela de Relatórios por módulo (briefing §17). Deriva tudo dos dados já
 // carregados; exporta CSV e imprime (Salvar como PDF no diálogo do navegador)
 // respeitando os filtros aplicados.
 export const RelatoriosView = (data) => {
+  const { can } = usePermissions();
+  const canExport = can('can_export_reports');
   const [reportKey, setReportKey] = useState(REPORTS[0].key);
   const [period, setPeriod] = useState('30d');
   const [customStart, setCustomStart] = useState('');
@@ -25,6 +28,7 @@ export const RelatoriosView = (data) => {
   const reportOptions = REPORTS.map((r) => ({ value: r.key, label: `${r.category} · ${r.label}` }));
 
   const doExport = () => {
+    if (!canExport) { toast.error('Sem permissão para exportar relatórios.'); return; }
     if (!rows.length) { toast.error('Sem dados para exportar.'); return; }
     exportCsv(rows, report.columns, report.key);
     toast.success('Relatório exportado.');
@@ -37,7 +41,7 @@ export const RelatoriosView = (data) => {
       kicker="Inteligência"
       actions={(
         <div className="inline-actions no-print">
-          <button type="button" className="ghost-button" onClick={doExport} title="Exportar CSV">Exportar CSV</button>
+          <button type="button" className="ghost-button" onClick={doExport} disabled={!canExport} title={canExport ? 'Exportar CSV' : 'Sem permissão para exportar'}>Exportar CSV</button>
           <button type="button" className="ghost-button" onClick={() => window.print()} title="Imprimir / Salvar PDF">Imprimir / PDF</button>
         </div>
       )}

@@ -1,42 +1,44 @@
 // Faixas de validade (briefing §13.5) — regra centralizada e configurável (§24).
-// Lê os limites de localStorage (editáveis na tela de Configurações) com os
-// defaults do briefing: crítico 7d, atenção 15d, monitorar 30d.
+// Persistidas no Supabase (sistema_configuracoes/chave 'faixas_validade'), não
+// mais em localStorage. Mantemos um cache em memória (hidratado por
+// fetchFaixasConfig no boot) para que classifyValidade continue síncrona.
+// Defaults do briefing: crítico 7d, atenção 15d, monitorar 30d.
 
-const CONFIG_KEY = 'gh-config-validade-v1';
+import { adminApi } from '../services/adminApi';
+
+const SETTING_KEY = 'faixas_validade';
 
 export const DEFAULT_FAIXAS = { criticoDias: 7, atencaoDias: 15, monitorarDias: 30 };
 
-export const loadFaixasConfig = () => {
-  try {
-    const raw = localStorage.getItem(CONFIG_KEY);
-    if (!raw) return { ...DEFAULT_FAIXAS };
-    const saved = JSON.parse(raw);
-    return {
-      criticoDias: Number(saved.criticoDias) || DEFAULT_FAIXAS.criticoDias,
-      atencaoDias: Number(saved.atencaoDias) || DEFAULT_FAIXAS.atencaoDias,
-      monitorarDias: Number(saved.monitorarDias) || DEFAULT_FAIXAS.monitorarDias,
-    };
-  } catch {
-    return { ...DEFAULT_FAIXAS };
-  }
+let _cache = { ...DEFAULT_FAIXAS };
+
+const normalize = (saved = {}) => ({
+  criticoDias: Number(saved.criticoDias) || DEFAULT_FAIXAS.criticoDias,
+  atencaoDias: Number(saved.atencaoDias) || DEFAULT_FAIXAS.atencaoDias,
+  monitorarDias: Number(saved.monitorarDias) || DEFAULT_FAIXAS.monitorarDias,
+});
+
+// Getter síncrono — devolve o cache em memória (defaults até hidratar).
+export const loadFaixasConfig = () => ({ ..._cache });
+
+// Carrega do Supabase e atualiza o cache. Chamado no bootstrap e na tela de Config.
+export const fetchFaixasConfig = async () => {
+  const valor = await adminApi.getSetting(SETTING_KEY, null);
+  if (valor) _cache = normalize(valor);
+  return { ..._cache };
 };
 
-export const saveFaixasConfig = (config) => {
-  try {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify({
-      criticoDias: Number(config.criticoDias) || DEFAULT_FAIXAS.criticoDias,
-      atencaoDias: Number(config.atencaoDias) || DEFAULT_FAIXAS.atencaoDias,
-      monitorarDias: Number(config.monitorarDias) || DEFAULT_FAIXAS.monitorarDias,
-    }));
-    return true;
-  } catch {
-    return false;
-  }
+// Salva no Supabase e atualiza o cache.
+export const saveFaixasConfig = async (config) => {
+  const next = normalize(config);
+  await adminApi.saveSetting(SETTING_KEY, next);
+  _cache = next;
+  return true;
 };
 
 // Classifica os dias restantes numa faixa de validade.
 // Faixas: vencido | hoje | critico | atencao | monitorar | seguro
-export const classifyValidade = (diasrestantes, config = loadFaixasConfig()) => {
+export const classifyValidade = (diasrestantes, config = _cache) => {
   const dias = Number(diasrestantes);
   if (!Number.isFinite(dias)) {
     return { key: 'desconhecido', label: 'Sem validade', tone: 'info', dias: null };

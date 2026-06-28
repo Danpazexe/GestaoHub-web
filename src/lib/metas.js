@@ -1,8 +1,10 @@
-// Metas operacionais (briefing §14). Persistidas em localStorage (sem schema):
-// o supervisor define o alvo de cada meta e o progresso é calculado a partir
-// dos dados em tempo real.
+// Metas operacionais (briefing §14). Persistidas no Supabase
+// (sistema_configuracoes/chave 'metas'), não mais em localStorage. Cache em
+// memória + fetch async; o progresso é calculado dos dados em tempo real.
 
-const STORAGE_KEY = 'gh-metas-v1';
+import { adminApi } from '../services/adminApi';
+
+const SETTING_KEY = 'metas';
 
 // Alvos padrão. `type`: 'zerar' (alvo = baixar até o alvo) ou 'percentual'.
 export const DEFAULT_METAS = {
@@ -14,33 +16,33 @@ export const DEFAULT_METAS = {
   pedidos_pendentes: { label: 'Concluir pedidos em aberto', module: 'recebimento', type: 'zerar', target: 0 },
 };
 
-export const loadMetas = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_METAS };
-    const saved = JSON.parse(raw);
-    // mescla com defaults (defaults preenchem metas novas)
-    const merged = { ...DEFAULT_METAS };
-    for (const key of Object.keys(merged)) {
-      if (saved[key] && typeof saved[key].target === 'number') {
-        merged[key] = { ...merged[key], target: saved[key].target };
-      }
+let _cache = { ...DEFAULT_METAS };
+
+const mergeTargets = (saved = {}) => {
+  const merged = { ...DEFAULT_METAS };
+  for (const key of Object.keys(merged)) {
+    if (saved[key] && typeof saved[key].target === 'number') {
+      merged[key] = { ...merged[key], target: saved[key].target };
     }
-    return merged;
-  } catch {
-    return { ...DEFAULT_METAS };
   }
+  return merged;
 };
 
-export const saveMetas = (metas) => {
-  try {
-    const minimal = {};
-    for (const [key, value] of Object.entries(metas)) {
-      minimal[key] = { target: value.target };
-    }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(minimal));
-    return true;
-  } catch {
-    return false;
+// Getter síncrono — cache em memória (defaults até hidratar via fetchMetas).
+export const loadMetas = () => ({ ..._cache });
+
+export const fetchMetas = async () => {
+  const valor = await adminApi.getSetting(SETTING_KEY, null);
+  if (valor) _cache = mergeTargets(valor);
+  return { ..._cache };
+};
+
+export const saveMetas = async (metas) => {
+  const minimal = {};
+  for (const [key, value] of Object.entries(metas)) {
+    minimal[key] = { target: value.target };
   }
+  await adminApi.saveSetting(SETTING_KEY, minimal);
+  _cache = mergeTargets(minimal);
+  return true;
 };

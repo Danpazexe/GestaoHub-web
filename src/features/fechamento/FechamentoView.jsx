@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { toast } from '../../lib/toast';
@@ -6,32 +6,39 @@ import { formatDateTime } from '../../lib/format';
 import { computeResumoDia, loadFechamentos, saveFechamento } from '../../lib/fechamento';
 
 // Fechamento diário (briefing §21). Mostra o resumo de pendências do dia, um
-// checklist de conferência e registra quem fechou, quando e o que restou.
+// checklist de conferência e registra quem fechou, quando e o que restou
+// (persistido no Supabase — tabela fechamentos_diarios).
 export const FechamentoView = (props) => {
   const { profile, ...data } = props;
   const resumo = useMemo(() => computeResumoDia(data), [data]);
   const [checks, setChecks] = useState({});
   const [observacoes, setObservacoes] = useState('');
-  const [historico, setHistorico] = useState(() => loadFechamentos());
+  const [historico, setHistorico] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  const refreshHistorico = () => { loadFechamentos().then(setHistorico).catch(() => {}); };
+  useEffect(() => { refreshHistorico(); }, []);
 
   const toggle = (key) => setChecks((cur) => ({ ...cur, [key]: !cur[key] }));
   const allChecked = resumo.itens.every((i) => checks[i.key]);
 
-  const registrar = () => {
-    const registro = {
-      at: new Date().toISOString(),
-      by: profile?.name || profile?.email || 'Admin',
-      pendenciasRestantes: resumo.totalPendencias,
-      observacoes: observacoes.trim(),
-      itens: resumo.itens.map((i) => ({ label: i.label, ok: Boolean(checks[i.key]), pendente: i.pendente })),
-    };
-    if (saveFechamento(registro)) {
-      setHistorico(loadFechamentos());
+  const registrar = async () => {
+    setSaving(true);
+    try {
+      await saveFechamento({
+        by: profile?.name || profile?.email || 'Admin',
+        pendenciasRestantes: resumo.totalPendencias,
+        observacoes: observacoes.trim(),
+        itens: resumo.itens.map((i) => ({ label: i.label, ok: Boolean(checks[i.key]), pendente: i.pendente })),
+      });
+      refreshHistorico();
       setChecks({});
       setObservacoes('');
       toast.success('Fechamento registrado.');
-    } else {
-      toast.error('Não foi possível registrar o fechamento.');
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível registrar o fechamento.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -72,8 +79,8 @@ export const FechamentoView = (props) => {
           </div>
         ) : null}
 
-        <button type="button" className="primary-button" style={{ marginTop: 14 }} onClick={registrar} disabled={!allChecked} title="Registrar fechamento">
-          {allChecked ? 'Registrar fechamento do dia' : 'Confirme todos os itens do checklist'}
+        <button type="button" className="primary-button" style={{ marginTop: 14 }} onClick={registrar} disabled={!allChecked || saving} title="Registrar fechamento">
+          {saving ? 'Registrando...' : allChecked ? 'Registrar fechamento do dia' : 'Confirme todos os itens do checklist'}
         </button>
       </PanelSection>
 

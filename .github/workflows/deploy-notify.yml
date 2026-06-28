@@ -27,6 +27,9 @@ jobs:
           ENVIRONMENT: ${{ github.event.deployment_status.environment }}
           TARGET_URL: ${{ github.event.deployment_status.environment_url }}
           SHA: ${{ github.event.deployment.sha }}
+          # Domínio público de acesso (produção). A URL única de cada deploy
+          # cai na proteção/login da Vercel, então em produção usamos este.
+          PROD_URL: https://gestao-hub.vercel.app
         run: |
           esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
           case "$STATE" in
@@ -35,16 +38,23 @@ jobs:
             *) HEAD="ℹ️ Deploy: $STATE";;
           esac
 
-          LINES=(
+          # Em produção, link para o domínio de acesso; em preview, a URL do deploy.
+          if [ "$ENVIRONMENT" = "Production" ] && [ -n "$PROD_URL" ]; then
+            LINK="$PROD_URL"
+          else
+            LINK="$TARGET_URL"
+          fi
+
+          MSG_LINES=(
             "▲ <b>Vercel · GestãoHub-web</b> · <b>${HEAD}</b>"
             ""
             "🌎 Ambiente: $(esc "$ENVIRONMENT")"
             "🔖 Commit: <code>${SHA:0:7}</code>"
           )
-          if [ -n "$TARGET_URL" ]; then
-            LINES+=("🔗 <a href=\"$(esc "$TARGET_URL")\">Abrir site</a>")
+          if [ -n "$LINK" ]; then
+            MSG_LINES+=("🔗 <a href=\"$(esc "$LINK")\">Abrir site</a>")
           fi
-          MSG=$(printf '%s\n' "${LINES[@]}")
+          MSG=$(printf '%s\n' "${MSG_LINES[@]}")
 
           PAYLOAD=$(jq -n --arg chat "$TELEGRAM_TO" --arg text "$MSG" \
             '{chat_id:$chat, text:$text, parse_mode:"HTML", disable_web_page_preview:true}')

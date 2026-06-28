@@ -43,8 +43,10 @@ export const MonitorView = ({
   );
 
   const onlineCount = (activeUsers || []).length;
-  const tratativasOpen = num(summary.open_tratativas);
-  const avariasOpen = num(summary.open_avaria_items);
+  // summary pode chegar null (dados ainda não carregados) — o default param só
+  // cobre undefined, então usamos optional chaining para não quebrar no 1º render.
+  const tratativasOpen = num(summary?.open_tratativas);
+  const avariasOpen = num(summary?.open_avaria_items);
 
   const tiles = [
     { label: 'Operadores online', value: onlineCount, tone: onlineCount > 0 ? 'ok' : 'info', icon: 'users', to: 'users' },

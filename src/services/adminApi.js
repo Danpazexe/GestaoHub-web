@@ -62,6 +62,22 @@ const readPt = async ({ ptTable, select, orderBy, ascending = false, limit, fall
   }
 };
 
+// Normaliza uma linha de approval_requests (0002/0009) para o formato usado pela
+// tela de Aprovações (antes/depois ficam em JSONB { texto }).
+const mapAprovacao = (r = {}) => ({
+  id: r.id,
+  type: r.action_type,
+  description: r.description || '',
+  before: r.before_payload?.texto || '',
+  after: r.after_payload?.texto || '',
+  status: r.status,
+  requestedBy: r.requested_by_name || '—',
+  requestedAt: r.requested_at,
+  decidedBy: r.decided_by_name || null,
+  decidedAt: r.decided_at,
+  decisionReason: r.decision_reason || '',
+});
+
 // Resolve o nome do ator dos eventos pelo profiles (caso actor_name tenha vindo nulo do app).
 const attachActor = async (rows) => {
   const ids = [...new Set((rows || []).map((row) => row.user_id).filter(Boolean))];
@@ -1368,6 +1384,16 @@ export const adminApi = {
       throw new Error('Falha ao forçar o logout do usuário.');
     }
 
+    // Auditoria (briefing §18): registra a ação sensível. Best-effort — não
+    // bloqueia o retorno se a RPC de evento ainda não existir (migrations/0009).
+    this.logOperationalEvent({
+      module: 'usuarios',
+      eventType: 'supervisor_forced_logout',
+      entityType: 'user',
+      entityId: userId,
+      payload: { sessions: data || 0 },
+    });
+
     return data || 0;
   },
 
@@ -1410,6 +1436,285 @@ export const adminApi = {
     } catch (storageError) {
       console.warn('[adminApi] Falha ao assinar imagens de produto:', storageError?.message);
       return {};
+    }
+  },
+
+  // ===================================================================
+  // Governança, permissões e auditoria (migrations/0009 e 0010).
+  // Substitui o localStorage por persistência no Supabase. Todo método
+  // degrada para defaults/vazio se as tabelas/funções ainda não existirem,
+  // para o painel nunca quebrar antes de aplicar o SQL.
+  // ===================================================================
+
+  async _uid() {
+    try { const { data } = await supabase.auth.getUser(); return data?.user?.id || null; } catch { return null; }
+  },
+
+  // --- Configurações globais (sistema_configuracoes): faixas, metas, config, checklist
+  async getSetting(chave, fallback = null) {
+    if (!supabase) return fallback;
+    try {
+      const { data, error } = await supabase
+        .from('sistema_configuracoes').select('valor').eq('chave', chave).maybeSingle();
+      if (error) throw error;
+      return data ? data.valor : fallback;
+    } catch (e) {
+      console.warn(`[adminApi] sistema_configuracoes indisponível (rode 0009): ${chave}`, e?.message || '');
+      return fallback;
+    }
+  },
+
+  async saveSetting(chave, valor) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const atualizado_por = await this._uid();
+    const { error } = await supabase.from('sistema_configuracoes').upsert(
+      { chave, valor, atualizado_por, atualizado_em: new Date().toISOString() },
+      { onConflict: 'chave' },
+    );
+    if (error) throw new Error(error.message || 'Falha ao salvar a configuração.');
+    return true;
+  },
+
+  // --- Preferências por usuário (usuario_preferencias): ex. notificações lidas
+  async getUserPref(chave, fallback = null) {
+    if (!supabase) return fallback;
+    try {
+      const uid = await this._uid();
+      if (!uid) return fallback;
+      const { data, error } = await supabase
+        .from('usuario_preferencias').select('valor').eq('user_id', uid).eq('chave', chave).maybeSingle();
+      if (error) throw error;
+      return data ? data.valor : fallback;
+    } catch (e) {
+      console.warn(`[adminApi] usuario_preferencias indisponível (rode 0009): ${chave}`, e?.message || '');
+      return fallback;
+    }
+  },
+
+  async saveUserPref(chave, valor) {
+    if (!supabase) return false;
+    try {
+      const uid = await this._uid();
+      if (!uid) return false;
+      const { error } = await supabase.from('usuario_preferencias').upsert(
+        { user_id: uid, chave, valor, atualizado_em: new Date().toISOString() },
+        { onConflict: 'user_id,chave' },
+      );
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.warn('[adminApi] falha ao salvar preferência do usuário', e?.message || '');
+      return false;
+    }
+  },
+
+  // --- Fechamentos diários (§21)
+  async getFechamentos(limit = 60) {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('fechamentos_diarios').select('*').order('fechado_em', { ascending: false }).limit(limit);
+      if (error) throw error;
+      return (data || []).map((r) => ({
+        id: r.id,
+        at: r.fechado_em,
+        by: r.fechado_por_nome || '—',
+        pendenciasRestantes: r.pendencias_restantes,
+        observacoes: r.observacoes || '',
+        itens: r.itens || [],
+      }));
+    } catch (e) {
+      console.warn('[adminApi] fechamentos_diarios indisponível (rode 0009)', e?.message || '');
+      return [];
+    }
+  },
+
+  async createFechamento({ by, pendenciasRestantes, observacoes, itens }) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const fechado_por = await this._uid();
+    const { data, error } = await supabase.from('fechamentos_diarios').insert([{
+      fechado_por,
+      fechado_por_nome: by,
+      pendencias_restantes: pendenciasRestantes,
+      observacoes,
+      itens,
+    }]).select('*').single();
+    if (error) throw new Error(error.message || 'Falha ao registrar o fechamento.');
+    return data;
+  },
+
+  // --- Logs técnicos centralizados (§34.17)
+  async getLogsTecnicos(limit = 100) {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('logs_tecnicos').select('*').order('criado_em', { ascending: false }).limit(limit);
+      if (error) throw error;
+      return (data || []).map((r) => ({ id: r.id, at: r.criado_em, level: r.nivel, message: r.mensagem, context: r.contexto || '' }));
+    } catch (e) {
+      console.warn('[adminApi] logs_tecnicos indisponível (rode 0009)', e?.message || '');
+      return [];
+    }
+  },
+
+  async insertLogTecnico({ level = 'error', message, context = '' }) {
+    if (!supabase) return false;
+    try {
+      const criado_por = await this._uid();
+      const { error } = await supabase.from('logs_tecnicos').insert([{
+        nivel: level,
+        mensagem: String(message || 'Erro').slice(0, 1000),
+        contexto: String(context || '').slice(0, 2000),
+        criado_por,
+      }]);
+      if (error) throw error;
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  async clearLogsTecnicos() {
+    if (!supabase) return false;
+    const { error } = await supabase.from('logs_tecnicos').delete().not('id', 'is', null);
+    if (error) throw new Error(error.message || 'Falha ao limpar logs.');
+    return true;
+  },
+
+  // --- Aprovações (§34.6) — approval_requests (migrations/0002 + 0009)
+  async getAprovacoes(limit = 200) {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('approval_requests').select('*').order('requested_at', { ascending: false }).limit(limit);
+      if (error) throw error;
+      return (data || []).map(mapAprovacao);
+    } catch (e) {
+      console.warn('[adminApi] approval_requests indisponível (rode 0002)', e?.message || '');
+      return [];
+    }
+  },
+
+  async createAprovacao({ type, description, before, after, requestedByName }) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const requested_by = await this._uid();
+    const { data, error } = await supabase.from('approval_requests').insert([{
+      action_type: type,
+      description,
+      module: 'admin',
+      before_payload: before ? { texto: before } : {},
+      after_payload: after ? { texto: after } : {},
+      status: 'pendente',
+      requested_by,
+      requested_by_name: requestedByName,
+    }]).select('*').single();
+    if (error) throw new Error(error.message || 'Falha ao criar a solicitação.');
+    return mapAprovacao(data);
+  },
+
+  async decideAprovacao(id, { status, decidedByName, decisionReason }) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const decided_by = await this._uid();
+    const { data, error } = await supabase.from('approval_requests').update({
+      status,
+      decided_by,
+      decided_by_name: decidedByName,
+      decided_at: new Date().toISOString(),
+      decision_reason: decisionReason,
+    }).eq('id', id).select('*').single();
+    if (error) throw new Error(error.message || 'Falha ao decidir a solicitação.');
+    return mapAprovacao(data);
+  },
+
+  // --- Permissões reais (migrations/0010)
+  // Retorna { roles, permissions, matrix } da matriz no banco, ou null se as
+  // tabelas ainda não existem (o frontend cai para a matriz padrão local).
+  async getPermissionsMatrix() {
+    if (!supabase) return null;
+    try {
+      const [perfisRes, permsRes, pivotRes] = await Promise.all([
+        supabase.from('perfis_acesso').select('id, chave, nome').order('criado_em', { ascending: true }),
+        supabase.from('permissoes_acoes').select('id, chave, nome').order('criado_em', { ascending: true }),
+        supabase.from('perfis_permissoes').select('perfil_id, permissao_id, permitido'),
+      ]);
+      if (perfisRes.error || permsRes.error || pivotRes.error) throw (perfisRes.error || permsRes.error || pivotRes.error);
+      const perfis = perfisRes.data || [];
+      const perms = permsRes.data || [];
+      if (!perfis.length || !perms.length) return null;
+      const permById = Object.fromEntries(perms.map((p) => [p.id, p.chave]));
+      const perfilById = Object.fromEntries(perfis.map((p) => [p.id, p.chave]));
+      const matrix = {};
+      perfis.forEach((pf) => { matrix[pf.chave] = {}; perms.forEach((pm) => { matrix[pf.chave][pm.chave] = false; }); });
+      (pivotRes.data || []).forEach((row) => {
+        const pf = perfilById[row.perfil_id];
+        const pm = permById[row.permissao_id];
+        if (pf && pm) matrix[pf][pm] = Boolean(row.permitido);
+      });
+      return {
+        roles: perfis.map((p) => ({ key: p.chave, label: p.nome })),
+        permissions: perms.map((p) => ({ key: p.chave, label: p.nome })),
+        matrix,
+      };
+    } catch (e) {
+      console.warn('[adminApi] permissões indisponíveis (rode 0010)', e?.message || '');
+      return null;
+    }
+  },
+
+  async setPermission(perfilChave, permissaoChave, permitido, motivo) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const { error } = await supabase.rpc('definir_permissao_perfil', {
+      p_perfil_chave: perfilChave,
+      p_permissao_chave: permissaoChave,
+      p_permitido: permitido,
+      p_motivo: motivo || null,
+    });
+    if (error) throw new Error(error.message || 'Falha ao salvar a permissão.');
+    return true;
+  },
+
+  // Mapa efetivo de permissões do usuário autenticado (via perfil + RLS no banco).
+  async resolveMyPermissions() {
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase.rpc('resolver_permissoes_usuario', {});
+      if (error) throw error;
+      return data || null; // { perfil, is_admin, permissoes: { can_*: bool } }
+    } catch (e) {
+      console.warn('[adminApi] resolver_permissoes_usuario indisponível (rode 0010)', e?.message || '');
+      return null;
+    }
+  },
+
+  async getAuditoriaPermissoes(limit = 100) {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase
+        .from('auditoria_alteracoes_permissao').select('*').order('criado_em', { ascending: false }).limit(limit);
+      if (error) throw error;
+      return data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  // --- Auditoria: grava evento operacional (RPC SECURITY DEFINER). Best-effort.
+  async logOperationalEvent({ module, eventType, entityType = null, entityId = null, payload = {}, orderRef = null }) {
+    if (!supabase) return null;
+    try {
+      const { data, error } = await supabase.rpc('registrar_evento', {
+        p_module: module,
+        p_event_type: eventType,
+        p_entity_type: entityType,
+        p_entity_id: entityId,
+        p_payload: payload,
+        p_order_ref: orderRef,
+      });
+      if (error) throw error;
+      return data || null;
+    } catch (e) {
+      console.warn('[adminApi] registrar_evento indisponível (rode 0009)', e?.message || '');
+      return null;
     }
   },
 };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { Drawer } from '../../components/Drawer';
@@ -11,35 +11,54 @@ import { APPROVAL_ACTIONS, loadAprovacoes, createAprovacao, decideAprovacao } fr
 
 const STATUS_TONE = { pendente: 'warning', aprovada: 'success', rejeitada: 'danger' };
 
-// Workflow de aprovação (briefing §34.6).
+// Workflow de aprovação (briefing §34.6). Solicitações persistidas no Supabase
+// (approval_requests); o app mobile pode criar solicitações reais na operação.
 export const AprovacoesView = (props) => {
   const { profile } = props;
   const who = profile?.name || profile?.email || 'Admin';
-  const [list, setList] = useState(() => loadAprovacoes());
+  const [list, setList] = useState([]);
   const [form, setForm] = useState({ type: APPROVAL_ACTIONS[0], description: '', before: '', after: '' });
   const [decision, setDecision] = useState(null); // { registro, status, reason }
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => { loadAprovacoes().then(setList).catch(() => {}); };
+  useEffect(() => { refresh(); }, []);
 
   const pendentes = useMemo(() => list.filter((r) => r.status === 'pendente'), [list]);
   const decididas = useMemo(() => list.filter((r) => r.status !== 'pendente'), [list]);
 
-  const submitRequest = () => {
+  const submitRequest = async () => {
     if (!form.description.trim()) { toast.error('Descreva a solicitação.'); return; }
-    createAprovacao({ ...form, requestedBy: who });
-    setList(loadAprovacoes());
-    setForm({ type: APPROVAL_ACTIONS[0], description: '', before: '', after: '' });
-    toast.success('Solicitação de aprovação criada.');
+    setBusy(true);
+    try {
+      await createAprovacao({ ...form, requestedBy: who });
+      refresh();
+      setForm({ type: APPROVAL_ACTIONS[0], description: '', before: '', after: '' });
+      toast.success('Solicitação de aprovação criada.');
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível criar a solicitação.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const openDecision = (registro, status) => setDecision({ registro, status, reason: '' });
   const reasonOk = decision ? hasReason(decision.reason) : false;
 
-  const confirmDecision = () => {
+  const confirmDecision = async () => {
     if (!reasonOk) { toast.error(VALIDATION_MESSAGES.reason); return; }
-    const next = decideAprovacao(decision.registro.id, { status: decision.status, decidedBy: who, decisionReason: decision.reason });
-    setList(next);
-    logEvent({ level: 'info', message: `Aprovação ${decision.status}`, context: `${who} · ${decision.registro.type} · ${decision.registro.description}` });
-    toast.success(`Solicitação ${decision.status}.`);
-    setDecision(null);
+    setBusy(true);
+    try {
+      await decideAprovacao(decision.registro.id, { status: decision.status, decidedBy: who, decisionReason: decision.reason });
+      refresh();
+      logEvent({ level: 'info', message: `Aprovação ${decision.status}`, context: `${who} · ${decision.registro.type} · ${decision.registro.description}` });
+      toast.success(`Solicitação ${decision.status}.`);
+      setDecision(null);
+    } catch (error) {
+      toast.error(error?.message || 'Não foi possível registrar a decisão.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -63,8 +82,8 @@ export const AprovacoesView = (props) => {
               <textarea value={decision.reason} onChange={(e) => setDecision((d) => ({ ...d, reason: e.target.value.slice(0, 300) }))} rows={3} placeholder="Justifique a aprovação/rejeição" />
             </label>
             {!reasonOk ? <div className="feedback warning">{VALIDATION_MESSAGES.reason}</div> : null}
-            <button type="button" className={decision.status === 'aprovada' ? 'primary-button' : 'danger-button'} onClick={confirmDecision} disabled={!reasonOk}>
-              {decision.status === 'aprovada' ? 'Confirmar aprovação' : 'Confirmar rejeição'}
+            <button type="button" className={decision.status === 'aprovada' ? 'primary-button' : 'danger-button'} onClick={confirmDecision} disabled={!reasonOk || busy}>
+              {busy ? 'Salvando...' : decision.status === 'aprovada' ? 'Confirmar aprovação' : 'Confirmar rejeição'}
             </button>
           </div>
         ) : null}
@@ -91,8 +110,8 @@ export const AprovacoesView = (props) => {
             <input value={form.after} onChange={(e) => setForm((f) => ({ ...f, after: e.target.value }))} placeholder="Qtd: 8 · Corrigido" />
           </label>
         </div>
-        <button type="button" className="primary-button" style={{ marginTop: 12 }} onClick={submitRequest}>Solicitar aprovação</button>
-        <p className="config-hint">Quando o app mobile e a tabela <code>approval_requests</code> (migração 0002) estiverem integrados, as solicitações geradas na operação aparecerão aqui automaticamente.</p>
+        <button type="button" className="primary-button" style={{ marginTop: 12 }} onClick={submitRequest} disabled={busy}>{busy ? 'Enviando...' : 'Solicitar aprovação'}</button>
+        <p className="config-hint">As solicitações são gravadas no Supabase (<code>approval_requests</code>). O app mobile também pode criar solicitações na operação, que aparecem aqui automaticamente.</p>
       </PanelSection>
 
       <PanelSection title={`Pendentes de aprovação (${pendentes.length})`} subtitle="Aprove ou rejeite — toda decisão exige motivo e gera auditoria" kicker="Controle">

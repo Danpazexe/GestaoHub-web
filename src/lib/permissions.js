@@ -1,8 +1,8 @@
 // Permissões granulares por ação (briefing §26). Define as ações controláveis,
-// os papéis padrão e o mapa papel→permissões. Persistido em localStorage; serve
-// como base de governança até existir enforcement no backend (RLS/políticas).
-
-const STORAGE_KEY = 'gh-permissions-v1';
+// os papéis padrão e o mapa papel→permissões. A matriz REAL vive no Supabase
+// (perfis_acesso/permissoes_acoes/perfis_permissoes, migrations/0010) e é
+// resolvida no servidor (RLS + RPC). Este módulo guarda apenas o catálogo e a
+// matriz padrão usada como fallback quando o banco ainda não foi migrado.
 
 export const PERMISSIONS = [
   { key: 'can_view_dashboard', label: 'Ver dashboards' },
@@ -41,33 +41,9 @@ export const DEFAULT_MATRIX = {
   ].includes(k)])),
 };
 
-export const loadMatrix = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return structuredCloneSafe(DEFAULT_MATRIX);
-    const saved = JSON.parse(raw);
-    const merged = structuredCloneSafe(DEFAULT_MATRIX);
-    for (const role of Object.keys(merged)) {
-      if (saved[role]) {
-        for (const perm of ALL) {
-          if (typeof saved[role][perm] === 'boolean') merged[role][perm] = saved[role][perm];
-        }
-      }
-    }
-    return merged;
-  } catch {
-    return structuredCloneSafe(DEFAULT_MATRIX);
-  }
-};
-
-export const saveMatrix = (matrix) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(matrix));
-    return true;
-  } catch {
-    return false;
-  }
-};
+// Fallback local (clone da matriz padrão) usado quando o banco ainda não tem as
+// tabelas de permissão (0010). A fonte de verdade é adminApi.getPermissionsMatrix().
+export const defaultMatrix = () => structuredCloneSafe(DEFAULT_MATRIX);
 
 function structuredCloneSafe(obj) {
   return JSON.parse(JSON.stringify(obj));

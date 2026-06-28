@@ -1,9 +1,9 @@
 // Fechamento diário da operação (briefing §21). Computa o resumo de pendências
-// do dia a partir dos dados e persiste os fechamentos registrados (localStorage).
+// do dia a partir dos dados e persiste os fechamentos no Supabase
+// (tabela fechamentos_diarios), não mais em localStorage.
 
 import { isOpenValidade, loadFaixasConfig } from './validadeFaixas';
-
-const STORAGE_KEY = 'gh-fechamentos-v1';
+import { adminApi } from '../services/adminApi';
 
 // Indicadores de pendência usados no checklist de fechamento.
 export const computeResumoDia = (data = {}) => {
@@ -33,17 +33,13 @@ export const computeResumoDia = (data = {}) => {
   return { itens, totalPendencias };
 };
 
-export const loadFechamentos = () => {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-};
+// Histórico de fechamentos (Supabase). Retorna [] se a tabela ainda não existe.
+export const loadFechamentos = () => adminApi.getFechamentos(60);
 
-export const saveFechamento = (registro) => {
-  try {
-    const all = loadFechamentos();
-    all.unshift(registro);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all.slice(0, 60)));
-    return true;
-  } catch {
-    return false;
-  }
-};
+// Registra um fechamento no Supabase. `registro`: { by, pendenciasRestantes, observacoes, itens }
+export const saveFechamento = (registro) => adminApi.createFechamento({
+  by: registro.by,
+  pendenciasRestantes: registro.pendenciasRestantes,
+  observacoes: registro.observacoes,
+  itens: registro.itens,
+});

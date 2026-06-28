@@ -37,7 +37,7 @@ const tokenize = (text, delimiter) => {
 };
 
 export const parseCsv = (text) => {
-  const clean = String(text || '').replace(/^﻿/, '');
+  const clean = String(text || '').replace(/^\uFEFF/, '');
   if (!clean.trim()) return { headers: [], rows: [] };
   // Detecta o delimitador pela contagem de colunas do header (fora de aspas).
   const semiRecs = tokenize(clean, ';');
@@ -123,7 +123,7 @@ export const validateRows = (type, rows) => rows.map((data, index) => {
 export const buildTemplate = (type) => {
   const header = type.columns.map((c) => c.key).join(';');
   const example = type.columns.map((c) => `exemplo_${c.key}`).join(';');
-  return `﻿${header}\n${example}`;
+  return `\uFEFF${header}\n${example}`;
 };
 
 export const downloadTemplate = (type) => {
@@ -139,12 +139,12 @@ export const downloadTemplate = (type) => {
 };
 
 // Persistência real para listas de config (setores/funções): mescla sem duplicar.
-export const persistConfigList = (configKey, validRows, loadConfig, saveConfig) => {
+export const persistConfigList = async (configKey, validRows, loadConfig, saveConfig) => {
   const config = loadConfig();
   const current = Array.isArray(config[configKey]) ? config[configKey] : [];
   const incoming = validRows.map((r) => String(r.data.nome || '').trim()).filter(Boolean);
   const merged = Array.from(new Set([...current, ...incoming]));
-  saveConfig({ ...config, [configKey]: merged });
+  await saveConfig({ ...config, [configKey]: merged });
   return merged.length - current.length; // quantidade de novos
 };
 

@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { SelectFilter } from '../../components/SelectFilter';
 import { toast } from '../../lib/toast';
 import { logEvent } from '../../lib/logger';
-import { loadConfig, saveConfig } from '../../lib/config';
+import { loadConfig, fetchConfig, saveConfig } from '../../lib/config';
 import {
   IMPORT_TYPES, getImportType, parseCsv, validateRows, downloadTemplate, persistConfigList,
 } from '../../lib/csvImport';
@@ -14,6 +14,9 @@ export const ImportacaoView = (props) => {
   const { profile } = props;
   const [typeKey, setTypeKey] = useState(IMPORT_TYPES[0].key);
   const [parsed, setParsed] = useState(null); // { validated: [], fileName }
+
+  // Hidrata o cache de config (Supabase) p/ mesclar listas de setores/funções.
+  useEffect(() => { fetchConfig().catch(() => {}); }, []);
 
   const type = useMemo(() => getImportType(typeKey), [typeKey]);
 
@@ -36,15 +39,19 @@ export const ImportacaoView = (props) => {
   const validRows = parsed ? parsed.validated.filter((r) => !r.errors.length) : [];
   const errorRows = parsed ? parsed.validated.filter((r) => r.errors.length) : [];
 
-  const confirmImport = () => {
+  const confirmImport = async () => {
     if (!validRows.length) { toast.error('Nenhuma linha válida para importar.'); return; }
     const who = profile?.name || profile?.email || 'Admin';
 
     if (type.configKey) {
-      const added = persistConfigList(type.configKey, validRows, loadConfig, saveConfig);
-      logEvent({ level: 'info', message: `Importação de ${type.label}`, context: `${who} importou ${validRows.length} linha(s), ${added} nova(s)` });
-      toast.success(`${added} item(ns) novo(s) adicionado(s) em ${type.label}.`);
-      setParsed(null);
+      try {
+        const added = await persistConfigList(type.configKey, validRows, loadConfig, saveConfig);
+        logEvent({ level: 'info', message: `Importação de ${type.label}`, context: `${who} importou ${validRows.length} linha(s), ${added} nova(s)` });
+        toast.success(`${added} item(ns) novo(s) adicionado(s) em ${type.label}.`);
+        setParsed(null);
+      } catch (error) {
+        toast.error(error?.message || 'Não foi possível salvar a importação.');
+      }
     } else {
       logEvent({ level: 'info', message: `Importação validada de ${type.label}`, context: `${who} validou ${validRows.length} linha(s)` });
       toast.success(`${validRows.length} linha(s) válida(s). Gravação no banco requer endpoint backend (registrado nos logs).`);

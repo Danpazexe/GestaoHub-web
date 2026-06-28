@@ -3,11 +3,18 @@ import { buildNotificacoes, loadReadIds, saveReadIds, countUnread } from '../lib
 import { formatRelativeMinutes } from '../lib/format';
 
 // Sino de notificações internas no topbar (briefing §20). Deriva das pendências
-// e eventos; lida/não-lida persiste em localStorage; clicar navega ao módulo.
+// e eventos; lida/não-lida persiste por usuário no Supabase; clicar navega ao módulo.
 export const NotificationsBell = ({ data, onNavigate }) => {
   const [open, setOpen] = useState(false);
-  const [readIds, setReadIds] = useState(() => loadReadIds());
+  const [readIds, setReadIds] = useState(() => new Set());
   const containerRef = useRef(null);
+
+  // Carrega os ids lidos do usuário (Supabase) ao montar.
+  useEffect(() => {
+    let alive = true;
+    loadReadIds().then((set) => { if (alive) setReadIds(set); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const notificacoes = useMemo(() => buildNotificacoes(data || {}), [data]);
   const unread = countUnread(notificacoes, readIds);

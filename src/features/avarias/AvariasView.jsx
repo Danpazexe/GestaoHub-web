@@ -3,6 +3,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { Drawer } from '../../components/Drawer';
 import { ResourceTable } from '../../components/ResourceTable';
 import { useConfirm } from '../../hooks/useConfirm';
+import { Attachments } from '../../components/Attachments';
 import { adminApi } from '../../services/adminApi';
 import { toast } from '../../lib/toast';
 import { formatDateTime, truncate } from '../../lib/format';
@@ -113,6 +114,7 @@ export const AvariasView = ({ avarias, onRefresh }) => {
           <button type="button" className="primary-button button-inline" onClick={resolveItem} disabled={resolutionState.loading} title="Confirmar resolução">
             {resolutionState.loading ? 'Salvando...' : 'Confirmar resolução'}
           </button>
+          <Attachments documentType="avaria_item" documentId={resolutionState.row?.item_id} title="Comprovantes" />
         </div>
       </Drawer>
 

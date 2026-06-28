@@ -1770,4 +1770,56 @@ export const adminApi = {
   revokeUserSession(userId, motivo) {
     return this._invokeAdminUsuarios('revoke_session', { target_user_id: userId, motivo });
   },
+
+  // --- Anexos/comprovantes (§23, migrations/0014). Bucket privado + metadados.
+  async uploadAttachment(file, { documentType, documentId }) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    if (file.size > 10 * 1024 * 1024) throw new Error('Arquivo muito grande (máx. 10 MB).');
+    const uid = await this._uid();
+    const safe = String(file.name || 'arquivo').replace(/[^\w.-]+/g, '_').slice(0, 80);
+    const path = `${documentType}/${documentId}/${Date.now()}-${safe}`;
+    const { error: upErr } = await supabase.storage
+      .from('document-attachments').upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (upErr) throw new Error(upErr.message || 'Falha no upload do anexo.');
+    const { data, error } = await supabase.from('document_attachments').insert([{
+      document_type: documentType,
+      document_id: String(documentId),
+      file_path: path,
+      file_name: file.name,
+      content_type: file.type || null,
+      size_bytes: file.size,
+      uploaded_by: uid,
+    }]).select('*').single();
+    if (error) throw new Error(error.message || 'Falha ao registrar o anexo.');
+    return data;
+  },
+
+  async listAttachments(documentType, documentId) {
+    if (!supabase) return [];
+    try {
+      const { data, error } = await supabase.from('document_attachments').select('*')
+        .eq('document_type', documentType).eq('document_id', String(documentId))
+        .order('uploaded_at', { ascending: false });
+      if (error) throw error;
+      const rows = data || [];
+      const paths = rows.map((r) => r.file_path);
+      const urls = {};
+      if (paths.length) {
+        const { data: signed } = await supabase.storage.from('document-attachments').createSignedUrls(paths, 3600);
+        (signed || []).forEach((s) => { if (s?.signedUrl && !s.error) urls[s.path] = s.signedUrl; });
+      }
+      return rows.map((r) => ({ ...r, url: urls[r.file_path] || null }));
+    } catch (e) {
+      console.warn('[adminApi] document_attachments indisponível (rode 0014)', e?.message || '');
+      return [];
+    }
+  },
+
+  async deleteAttachment(id, filePath) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    await supabase.storage.from('document-attachments').remove([filePath]);
+    const { error } = await supabase.from('document_attachments').delete().eq('id', id);
+    if (error) throw new Error(error.message || 'Falha ao remover o anexo.');
+    return true;
+  },
 };

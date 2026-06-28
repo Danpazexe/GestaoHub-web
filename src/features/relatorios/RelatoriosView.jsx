@@ -3,6 +3,7 @@ import { PanelSection } from '../../components/PanelSection';
 import { DataTable } from '../../components/DataTable';
 import { SelectFilter } from '../../components/SelectFilter';
 import { exportCsv } from '../../lib/csv';
+import { exportXlsx, exportPdf } from '../../lib/exporters';
 import { toast } from '../../lib/toast';
 import { REPORTS, PERIODS, periodRange } from '../../lib/relatorios';
 import { usePermissions } from '../../context/PermissionsContext';
@@ -34,15 +35,32 @@ export const RelatoriosView = (data) => {
     toast.success('Relatório exportado.');
   };
 
+  const doExportFormat = async (kind) => {
+    if (!canExport) { toast.error('Sem permissão para exportar relatórios.'); return; }
+    if (!rows.length) { toast.error('Sem dados para exportar.'); return; }
+    const id = toast.loading(`Gerando ${kind.toUpperCase()}...`);
+    try {
+      const fn = kind === 'xlsx' ? exportXlsx : exportPdf;
+      await fn(rows, report.columns, report.key, `${report.category} — ${report.label}`);
+      toast.success(`${kind.toUpperCase()} gerado.`);
+    } catch (error) {
+      toast.error(error?.message || `Falha ao gerar ${kind.toUpperCase()}.`);
+    } finally {
+      toast.dismiss(id);
+    }
+  };
+
   return (
     <PanelSection
       title="Relatórios"
-      subtitle="Relatórios operacionais por módulo — exporte em CSV ou imprima (Salvar como PDF)"
+      subtitle="Relatórios operacionais por módulo — exporte em CSV, Excel ou PDF (respeita os filtros)"
       kicker="Inteligência"
       actions={(
         <div className="inline-actions no-print">
-          <button type="button" className="ghost-button" onClick={doExport} disabled={!canExport} title={canExport ? 'Exportar CSV' : 'Sem permissão para exportar'}>Exportar CSV</button>
-          <button type="button" className="ghost-button" onClick={() => window.print()} title="Imprimir / Salvar PDF">Imprimir / PDF</button>
+          <button type="button" className="ghost-button" onClick={doExport} disabled={!canExport} title={canExport ? 'Exportar CSV' : 'Sem permissão para exportar'}>CSV</button>
+          <button type="button" className="ghost-button" onClick={() => doExportFormat('xlsx')} disabled={!canExport} title="Exportar Excel (XLSX)">Excel</button>
+          <button type="button" className="ghost-button" onClick={() => doExportFormat('pdf')} disabled={!canExport} title="Exportar PDF">PDF</button>
+          <button type="button" className="ghost-button" onClick={() => window.print()} title="Imprimir">Imprimir</button>
         </div>
       )}
     >

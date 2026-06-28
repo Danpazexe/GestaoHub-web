@@ -83,3 +83,24 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           npm audit --omit=dev --audit-level=high 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  notificar:
+    name: 📲 Notificar Telegram
+    needs: [quality, audit]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      # Envia o status do pipeline pro Telegram (gratuito e oficial).
+      # Segredos do repo: TELEGRAM_TO (teu chat_id) e TELEGRAM_BOT_TOKEN.
+      - name: 📲 Enviar status para o Telegram
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          disable_web_page_preview: true
+          message: |
+            🚦 GestãoHub-web — ${{ needs.quality.result == 'success' && '✅ passou' || '❌ falhou' }}
+            🌿 ${{ github.ref_name }} · 👤 ${{ github.actor }}
+            📝 ${{ github.event.head_commit.message || github.event.pull_request.title }}
+            🔗 ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -9,6 +9,27 @@ const isMissingRelationError = (error) => {
     || msg.includes('schema cache');
 };
 
+// Timeout de requisição (evita queries penduradas em rede lenta) e retry com
+// backoff para erros transitórios de rede (3G/WiFi fraco). Não repete erro de
+// relação ausente (não adianta).
+const QUERY_TIMEOUT_MS = 20000;
+const timeoutSignal = () =>
+  (typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(QUERY_TIMEOUT_MS) : undefined);
+
+const withRetry = async (fn, attempts = 2, delayMs = 400) => {
+  let lastErr;
+  for (let i = 0; i <= attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (isMissingRelationError(err)) throw err;
+      if (i < attempts) await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
+    }
+  }
+  throw lastErr;
+};
+
 const readMany = async (table, options = {}) => {
   const {
     columns = '*',
@@ -18,26 +39,31 @@ const readMany = async (table, options = {}) => {
     optional = false,
   } = options;
 
-  let query = supabase.from(table).select(columns);
+  return withRetry(async () => {
+    let query = supabase.from(table).select(columns);
 
-  if (orderBy) {
-    query = query.order(orderBy, { ascending });
-  }
-
-  if (typeof limit === 'number') {
-    query = query.limit(limit);
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    // Uma view ainda não migrada não pode derrubar o painel inteiro: degrada p/ vazio.
-    if (optional && isMissingRelationError(error)) {
-      console.warn(`[adminApi] Relação ausente (rode a migração do schema): ${table}. Retornando vazio.`, error.message);
-      return [];
+    if (orderBy) {
+      query = query.order(orderBy, { ascending });
     }
-    throw error;
-  }
-  return data || [];
+
+    if (typeof limit === 'number') {
+      query = query.limit(limit);
+    }
+
+    const sig = timeoutSignal();
+    if (sig) query = query.abortSignal(sig);
+
+    const { data, error } = await query;
+    if (error) {
+      // Uma view ainda não migrada não pode derrubar o painel inteiro: degrada p/ vazio.
+      if (optional && isMissingRelationError(error)) {
+        console.warn(`[adminApi] Relação ausente (rode a migração do schema): ${table}. Retornando vazio.`, error.message);
+        return [];
+      }
+      throw error;
+    }
+    return data || [];
+  });
 };
 
 // Migração gradual para o schema em português (briefing §7): tenta ler de uma
@@ -51,6 +77,8 @@ const readPt = async ({ ptTable, select, orderBy, ascending = false, limit, fall
     let query = supabase.from(ptTable).select(select);
     if (orderBy) query = query.order(orderBy, { ascending });
     if (typeof limit === 'number') query = query.limit(limit);
+    const sig = timeoutSignal();
+    if (sig) query = query.abortSignal(sig);
     const { data, error } = await query;
     if (error) throw error;
     return data || [];

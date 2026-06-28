@@ -22,13 +22,17 @@ export const ConfiguracoesView = () => {
   const [saving, setSaving] = useState(false);
 
   // Carrega do Supabase ao montar (o getter síncrono devolve só o cache/defaults).
+  // allSettled: aplica o que carregou e avisa se alguma parte falhou (sem silêncio).
   useEffect(() => {
     let alive = true;
-    Promise.all([fetchFaixasConfig(), fetchConfig()]).then(([f, c]) => {
+    Promise.allSettled([fetchFaixasConfig(), fetchConfig()]).then(([f, c]) => {
       if (!alive) return;
-      setFaixas(f);
-      setConfig(c);
-    }).catch(() => {});
+      if (f.status === 'fulfilled') setFaixas(f.value);
+      if (c.status === 'fulfilled') setConfig(c.value);
+      if (f.status === 'rejected' || c.status === 'rejected') {
+        toast.error('Falha ao carregar parte das configurações.');
+      }
+    });
     return () => { alive = false; };
   }, []);
 

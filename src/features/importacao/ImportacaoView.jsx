@@ -23,6 +23,11 @@ export const ImportacaoView = (props) => {
   const handleFile = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Arquivo muito grande (máx. 5 MB).');
+      event.target.value = '';
+      return;
+    }
     try {
       const text = await file.text();
       const { rows } = parseCsv(text);

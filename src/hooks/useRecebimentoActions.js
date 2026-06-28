@@ -13,6 +13,11 @@ export const useRecebimentoActions = (user, loadDashboard) => {
   const importXml = useCallback(async (event) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setXmlImportState({ loading: false, error: 'Arquivo muito grande (máx. 5 MB).', success: '', preview: null });
+      event.target.value = '';
+      return;
+    }
     setXmlImportState({ loading: true, error: '', success: '', preview: null });
     try {
       const parsed = parseNfeXml(await file.text());
@@ -41,6 +46,11 @@ export const useRecebimentoActions = (user, loadDashboard) => {
   const importPurchaseOrderXml = useCallback(async (event) => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setPurchaseOrderState({ loading: false, loadingId: '', error: 'Arquivo muito grande (máx. 5 MB).', success: '', preview: null });
+      event.target.value = '';
+      return;
+    }
     setPurchaseOrderState({ loading: true, loadingId: '', error: '', success: '', preview: null });
     try {
       const parsed = parseNfeXml(await file.text());

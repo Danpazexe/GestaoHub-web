@@ -1,5 +1,11 @@
 # GestãoHub — Webapp (Painel de Supervisão)
 
+[![🚦 CI](https://github.com/Danpazexe/GestaoHub-web/actions/workflows/ci.yml/badge.svg)](https://github.com/Danpazexe/GestaoHub-web/actions/workflows/ci.yml)
+![Node](https://img.shields.io/badge/node-20-339933?logo=node.js&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![Supabase](https://img.shields.io/badge/Supabase-RLS-3ECF8E?logo=supabase&logoColor=white)
+
 Central web de **supervisão, operação, auditoria e BI** sobre o Supabase do
 GestãoHub. Permite acompanhar a operação em tempo real, gerenciar colaboradores,
 controlar validade, conferir recebimentos, resolver pendências, analisar

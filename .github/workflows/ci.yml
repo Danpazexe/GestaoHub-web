@@ -1,49 +1,85 @@
-name: CI
+name: 🚦 CI
 
 on:
   push:
     branches: [main]
   pull_request:
 
+# Cancela execuções antigas do mesmo ref (economiza minutos).
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Menor privilégio possível para o token do workflow.
+permissions:
+  contents: read
+
 jobs:
   quality:
-    name: Lint · Test · Build
+    name: 🔍 Qualidade
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: ⬇️ Checkout do código
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: ⚙️ Configurar Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - name: Install
+      - name: 📦 Instalar dependências
         run: npm ci
 
-      - name: Lint (ESLint)
+      - name: 🧹 Lint (ESLint)
+        id: lint
         run: npm run lint
 
-      - name: Testes (Vitest)
+      - name: 🧪 Testes (Vitest)
+        id: test
         run: npm test
 
-      - name: Build de produção
+      - name: 🏗️ Build de produção
+        id: build
         run: npm run build
 
+      - name: 📋 Resumo do pipeline
+        if: always()
+        run: |
+          {
+            echo "## 🚦 GestãoHub — Pipeline de Qualidade"
+            echo ""
+            echo "| Etapa | Resultado |"
+            echo "| :--- | :---: |"
+            echo "| 🧹 Lint (ESLint)    | ${{ steps.lint.outcome == 'success' && '✅ passou' || steps.lint.outcome == 'skipped' && '⏭️ pulado' || '❌ falhou' }} |"
+            echo "| 🧪 Testes (Vitest)  | ${{ steps.test.outcome == 'success' && '✅ passou' || steps.test.outcome == 'skipped' && '⏭️ pulado' || '❌ falhou' }} |"
+            echo "| 🏗️ Build (Vite)     | ${{ steps.build.outcome == 'success' && '✅ passou' || steps.build.outcome == 'skipped' && '⏭️ pulado' || '❌ falhou' }} |"
+            echo ""
+            echo "> Commit \`${GITHUB_SHA::7}\` · branch \`${GITHUB_REF_NAME}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   audit:
-    name: Audit de dependências
+    name: 🔒 Segurança das dependências
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: ⬇️ Checkout do código
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-      - name: Install
+
+      - name: 📦 Instalar dependências
         run: npm ci
-      # Não bloqueia o pipeline: apenas reporta vulnerabilidades de produção.
-      - name: npm audit (informativo)
-        run: npm audit --omit=dev || true
+
+      # Informativo: reporta vulnerabilidades de produção sem bloquear o merge.
+      - name: 🔒 npm audit (produção)
+        run: |
+          echo "## 🔒 Auditoria de dependências (produção)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm audit --omit=dev --audit-level=high 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

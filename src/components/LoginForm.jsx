@@ -25,7 +25,7 @@ export const LoginForm = ({ onSuccess, disabled, globalError }) => {
     <div className="login-shell">
       <div className="login-brand">
         <div className="login-logo">
-          <div className="login-logo-mark" aria-hidden="true">GH</div>
+          <div className="login-logo-mark" aria-hidden="true"><img src="/icon.svg" alt="" /></div>
           <div className="login-logo-text">
             <span className="login-logo-name">GestãoHub</span>
             <span className="login-logo-sub">Supervisão</span>

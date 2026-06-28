@@ -101,7 +101,7 @@ export const AdminShell = ({
       <aside className={sidebarClass}>
         <div className="sidebar-brand">
           <div className="brand-logo-row">
-            <div className="brand-mark" aria-hidden="true">GH</div>
+            <div className="brand-mark" aria-hidden="true"><img src="/icon.svg" alt="" /></div>
             <div className="brand-text">
               <strong>GestãoHub</strong>
               <span>Supervisão</span>
@@ -175,7 +175,7 @@ export const AdminShell = ({
               </svg>
             </button>
             <div className="mobile-brand">
-              <div className="brand-mark" aria-hidden="true" style={{ width: 30, height: 30, borderRadius: 9, fontSize: 10 }}>GH</div>
+              <div className="brand-mark" aria-hidden="true" style={{ width: 30, height: 30, borderRadius: 9 }}><img src="/icon.svg" alt="" /></div>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{activeItem.label}</span>
             </div>
             <div style={{ width: 36 }} />

@@ -172,3 +172,12 @@
 }
 .danger-button:hover { background: rgba(239,68,68,0.16); transform: translateY(-1px); }
 
+
+/* Acessibilidade: skip link (oculto até receber foco por teclado) */
+.skip-link {
+  position: absolute; left: 8px; top: -48px; z-index: 1000;
+  background: #1d4ed8; color: #fff; padding: 8px 14px;
+  border-radius: 8px; font-size: 13px; font-weight: 600; transition: top .15s ease;
+}
+.skip-link:focus { top: 8px; outline: 2px solid #fff; outline-offset: 2px; }
+.main-shell:focus { outline: none; }

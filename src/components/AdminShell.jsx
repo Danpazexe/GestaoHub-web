@@ -91,6 +91,7 @@ export const AdminShell = ({
 
   return (
     <div className="app-shell">
+      <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
       <div
         className={mobileOpen ? 'sidebar-overlay open' : 'sidebar-overlay'}
         onClick={() => setMobileOpen(false)}
@@ -165,7 +166,7 @@ export const AdminShell = ({
       </aside>
 
       {/* Main */}
-      <main className="main-shell">
+      <main className="main-shell" id="conteudo" tabIndex={-1}>
         <div className="main-shell-inner">
           {/* Mobile topbar */}
           <div className="mobile-topbar">

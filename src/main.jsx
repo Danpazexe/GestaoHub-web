@@ -31,3 +31,9 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => { /* ignore */ });
   });
 }
+
+// Observabilidade leve (briefing §34.17): Web Vitals → logs_tecnicos, só em
+// produção. Carregado sob demanda para não pesar no boot.
+if (import.meta.env.PROD) {
+  import('./lib/vitals').then((m) => m.initWebVitals()).catch(() => { /* ignore */ });
+}

@@ -123,7 +123,7 @@ export const RecebimentoView = ({
   return (
     <div className="content-grid">
       <PanelSection
-        title="Recebimento Winthor-like"
+        title="Recebimento de notas"
         subtitle="Fluxo operacional completo para pedido, entrada, bônus, devolução, reimpressão e auditoria"
         kicker="Operação"
       >
@@ -270,7 +270,7 @@ export const RecebimentoView = ({
 
       <PanelSection
         title="Pedidos de compra"
-        subtitle="Fluxo inspirado em Winthor 1301/1306 para entrada, bônus, devolução e auditoria"
+        subtitle="Fluxo de pedidos para entrada, bônus, devolução e auditoria"
         kicker="Recebimento"
       >
           <DataTable

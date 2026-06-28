@@ -1745,4 +1745,29 @@ export const adminApi = {
       return null;
     }
   },
+
+  // --- Gestão de usuários via Edge Function admin-usuarios (service_role).
+  // Degrada com mensagem clara se a função ainda não foi deployada.
+  async _invokeAdminUsuarios(action, payload = {}) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const { data, error } = await supabase.functions.invoke('admin-usuarios', { body: { action, ...payload } });
+    if (error) throw new Error('Função admin-usuarios indisponível (faça o deploy: supabase functions deploy admin-usuarios).');
+    if (data?.error) throw new Error(data.error);
+    return data;
+  },
+
+  // Reseta a senha (retorna { senha_temporaria }).
+  resetUserPassword(userId, { newPassword, motivo } = {}) {
+    return this._invokeAdminUsuarios('reset_password', { target_user_id: userId, new_password: newPassword, motivo });
+  },
+
+  // Bloqueia/desbloqueia o acesso (ban no auth).
+  setUserBlocked(userId, blocked, motivo) {
+    return this._invokeAdminUsuarios(blocked ? 'block' : 'unblock', { target_user_id: userId, motivo });
+  },
+
+  // Revoga TODOS os refresh tokens do usuário (logout real — resolve C2).
+  revokeUserSession(userId, motivo) {
+    return this._invokeAdminUsuarios('revoke_session', { target_user_id: userId, motivo });
+  },
 };

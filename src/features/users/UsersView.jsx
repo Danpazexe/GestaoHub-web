@@ -58,6 +58,72 @@ export const UsersView = ({ activeUsers, onRefresh }) => {
     }
   };
 
+  const who = (row) => row.name || row.email || 'colaborador';
+
+  const handleResetPassword = async (row) => {
+    const motivo = await confirm({
+      title: 'Resetar a senha do colaborador?',
+      description: `Uma senha temporária será gerada para ${who(row)}. Repasse com segurança.`,
+      confirmLabel: 'Resetar senha',
+      requireReason: true,
+      reasonLabel: 'Motivo (obrigatório)',
+    });
+    if (!motivo) return;
+    const loadingId = toast.loading('Resetando senha...');
+    try {
+      const res = await adminApi.resetUserPassword(row.user_id, { motivo });
+      toast.success(`Senha temporária: ${res?.senha_temporaria || '(gerada)'} — copie e envie ao colaborador.`, { duration: 12000 });
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao resetar a senha.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
+  const handleBlock = async (row, blocked) => {
+    const motivo = await confirm({
+      title: blocked ? 'Bloquear acesso do colaborador?' : 'Desbloquear acesso do colaborador?',
+      description: `${who(row)} ${blocked ? 'não poderá mais entrar até ser desbloqueado.' : 'volta a poder entrar.'}`,
+      confirmLabel: blocked ? 'Bloquear' : 'Desbloquear',
+      danger: blocked,
+      requireReason: true,
+      reasonLabel: 'Motivo (obrigatório)',
+    });
+    if (!motivo) return;
+    const loadingId = toast.loading(blocked ? 'Bloqueando...' : 'Desbloqueando...');
+    try {
+      await adminApi.setUserBlocked(row.user_id, blocked, motivo);
+      await onRefresh?.();
+      toast.success(blocked ? 'Acesso bloqueado.' : 'Acesso desbloqueado.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao alterar o bloqueio.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
+  const handleRevoke = async (row) => {
+    const motivo = await confirm({
+      title: 'Revogar todas as sessões do colaborador?',
+      description: `Encerra de verdade o acesso de ${who(row)} (revoga os tokens). Ele precisará entrar de novo.`,
+      confirmLabel: 'Revogar sessões',
+      danger: true,
+      requireReason: true,
+      reasonLabel: 'Motivo (obrigatório)',
+    });
+    if (!motivo) return;
+    const loadingId = toast.loading('Revogando sessões...');
+    try {
+      await adminApi.revokeUserSession(row.user_id, motivo);
+      await onRefresh?.();
+      toast.success('Sessões revogadas.');
+    } catch (error) {
+      toast.error(error?.message || 'Falha ao revogar sessões.');
+    } finally {
+      toast.dismiss(loadingId);
+    }
+  };
+
   const openProfile = async (row) => {
     setDrawerState({ open: true, user: row, events: [], loading: true });
     try {
@@ -239,7 +305,11 @@ export const UsersView = ({ activeUsers, onRefresh }) => {
               render: (row) => (
                 <RowActions actions={[
                   { label: 'Ver perfil completo', onClick: () => openProfile(row) },
-                  { label: 'Encerrar sessão no app', onClick: () => handleForceLogout(row), danger: true },
+                  { label: 'Resetar senha', onClick: () => handleResetPassword(row) },
+                  { label: 'Bloquear acesso', onClick: () => handleBlock(row, true) },
+                  { label: 'Desbloquear acesso', onClick: () => handleBlock(row, false) },
+                  { label: 'Encerrar sessão no app', onClick: () => handleForceLogout(row) },
+                  { label: 'Revogar sessões (logout real)', onClick: () => handleRevoke(row), danger: true },
                 ]} />
               ),
             },
